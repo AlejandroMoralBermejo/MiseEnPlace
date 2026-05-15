@@ -38,9 +38,19 @@ export interface ShoppingItem {
   ingredient_name: string;
   quantity: number;
   unit: string;
+  store: string;
+  notes: string;
   purchased: boolean;
   date: string | null;
   created_at: string;
+}
+
+export interface ShoppingFormData {
+  ingredient_name: string;
+  quantity: number;
+  unit: string;
+  store: string;
+  notes: string;
 }
 
 export interface MealFormData {
