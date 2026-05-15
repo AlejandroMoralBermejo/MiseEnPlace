@@ -34,6 +34,19 @@ export default function ShoppingPage() {
     loadItems();
   }, [loadItems]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('shopping-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shopping_list' },
+        () => { loadItems(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadItems, supabase]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 

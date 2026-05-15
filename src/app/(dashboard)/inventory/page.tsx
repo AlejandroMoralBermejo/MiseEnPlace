@@ -33,6 +33,19 @@ export default function InventoryPage() {
     loadItems();
   }, [loadItems]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('inventory-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'inventory' },
+        () => { loadItems(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadItems, supabase]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 

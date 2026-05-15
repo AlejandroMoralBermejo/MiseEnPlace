@@ -94,6 +94,19 @@ export default function CalendarPage() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('meals-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'meals' },
+        () => { loadData(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadData, supabase]);
+
   const getMealsForDay = (date: Date, mealTypeId?: number): Meal[] => {
     const dateStr = formatDateKey(date);
     return meals.filter((meal) => {
