@@ -147,7 +147,7 @@ export default function ShoppingPage() {
 
   const openAddForm = () => {
     setEditingItem(null);
-    setFormData({ ingredient_name: '', quantity: 1, unit: 'unidades' });
+    setFormData({ ingredient_name: '', quantity: 1, unit: 'unidades', store: 'Supermercado', notes: '' });
     setShowForm(true);
   };
 
