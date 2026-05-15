@@ -402,7 +402,7 @@ export default function CalendarPage() {
                               e.stopPropagation();
                               handleDelete(meal.id, meal.name);
                             }}
-                            className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200 flex items-center justify-center"
+                            className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm font-bold opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200 flex items-center justify-center"
                           >
                             ×
                           </button>
