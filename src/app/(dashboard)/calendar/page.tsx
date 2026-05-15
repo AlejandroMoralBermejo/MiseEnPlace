@@ -173,11 +173,16 @@ export default function CalendarPage() {
   };
 
   const confirmDelete = async () => {
-    if (deleteConfirm.id) {
-      await supabase.from('meals').delete().eq('id', deleteConfirm.id);
-      setDeleteConfirm({ show: false, id: null, name: '' });
-      loadData();
+    if (!deleteConfirm.id) return;
+    const { error } = await supabase.from('meals').delete().eq('id', deleteConfirm.id);
+    if (error) {
+      console.error('Error al eliminar comida:', error);
+      alert(`No se pudo eliminar: ${error.message}`);
+      return;
     }
+    setMeals((prev) => prev.filter((m) => m.id !== deleteConfirm.id));
+    setDeleteConfirm({ show: false, id: null, name: '' });
+    loadData();
   };
 
   const goToToday = () => {
@@ -258,7 +263,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-4 lg:p-6">
       {/* Header */}
       <header className="mb-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -278,7 +283,7 @@ export default function CalendarPage() {
         </div>
       </header>
 
-      <main className="px-4 py-6 sm:px-6 lg:px-8">
+      <main className="py-2">
         {/* Navigation Bar */}
         <div className="bg-white rounded-2xl shadow-lg shadow-amber-100/50 border border-amber-100 p-4 mb-6 max-w-[1800px] mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -347,14 +352,14 @@ export default function CalendarPage() {
 
         {/* Calendar Views */}
         {viewMode === 'week' ? (
-          /* Week View - Responsive: single col on mobile, 3 on tablet, 5 on desktop, 7 on large screens */
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3 max-w-[1800px] mx-auto overflow-x-auto">
+          /* Week View - single col on mobile, full 7-day grid from md+ */
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 lg:gap-3 max-w-[1800px] mx-auto">
             {getWeekDays().map((day) => {
               const isToday = isSameDay(day, new Date());
               return (
                 <div
                   key={day.toISOString()}
-                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 min-w-[160px] xl:min-w-[180px] ${
+                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 min-w-0 ${
                     isToday
                       ? 'border-amber-400 ring-2 ring-amber-400/50'
                       : 'border-amber-100'
@@ -366,10 +371,11 @@ export default function CalendarPage() {
                     className={`text-center py-3 px-2 border-b cursor-pointer flex-shrink-0 ${isToday ? 'bg-amber-50 rounded-t-2xl' : ''} hover:bg-amber-100/50 transition-colors`}
                     title="Doble clic para agregar comida"
                   >
-                    <p className={`text-xs sm:text-sm font-medium truncate ${isToday ? 'text-amber-600' : 'text-stone-500'}`}>
-                      {DAY_NAMES_FULL[day.getDay()]}
+                    <p className={`text-xs lg:text-sm font-medium truncate ${isToday ? 'text-amber-600' : 'text-stone-500'}`}>
+                      <span className="md:hidden xl:inline">{DAY_NAMES_FULL[day.getDay()]}</span>
+                      <span className="hidden md:inline xl:hidden">{DAY_NAMES[day.getDay()]}</span>
                     </p>
-                    <p className={`text-2xl sm:text-3xl font-bold mt-1 ${isToday ? 'text-amber-700' : 'text-stone-700'}`}>
+                    <p className={`text-2xl lg:text-3xl font-bold mt-1 ${isToday ? 'text-amber-700' : 'text-stone-700'}`}>
                       {day.getDate()}
                     </p>
                   </div>
@@ -382,7 +388,7 @@ export default function CalendarPage() {
                         <div
                           key={meal.id}
                           onClick={() => openEditMeal(meal)}
-                          className="group relative p-2 sm:p-3 rounded-xl bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition-all duration-200 hover:shadow-md"
+                          className="group relative p-2 sm:p-3 pr-9 rounded-xl bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition-all duration-200 hover:shadow-md"
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-lg sm:text-xl">{MEAL_TYPE_ICONS[meal.meal_type_id]}</span>
