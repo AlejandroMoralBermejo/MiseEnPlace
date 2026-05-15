@@ -163,7 +163,7 @@ export default function InventoryPage() {
                     <span className="ml-2 text-base font-medium text-stone-500">{item.unit}</span>
                   </p>
                 </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 lg:opacity-100">
                   <button
                     onClick={() => handleEdit(item)}
                     className="rounded-xl bg-amber-100 p-3 text-amber-600 hover:bg-amber-200 transition-colors shadow-md"

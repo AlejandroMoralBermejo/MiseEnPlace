@@ -347,14 +347,14 @@ export default function CalendarPage() {
 
         {/* Calendar Views */}
         {viewMode === 'week' ? (
-          /* Week View - Full width, content-driven height */
-          <div className="grid grid-cols-7 gap-3 max-w-[1800px] mx-auto">
+          /* Week View - Responsive: 7 cols on lg+, 3 cols on md, single col on mobile */
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-3 max-w-[1800px] mx-auto overflow-x-auto">
             {getWeekDays().map((day) => {
               const isToday = isSameDay(day, new Date());
               return (
                 <div
                   key={day.toISOString()}
-                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 ${
+                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 min-w-[140px] ${
                     isToday
                       ? 'border-amber-400 ring-2 ring-amber-400/50'
                       : 'border-amber-100'
@@ -363,35 +363,35 @@ export default function CalendarPage() {
                   {/* Day Header - Double click to add meal */}
                   <div
                     onDoubleClick={() => openAddMeal(day)}
-                    className={`text-center py-4 px-2 border-b cursor-pointer flex-shrink-0 ${isToday ? 'bg-amber-50 rounded-t-2xl' : ''} hover:bg-amber-100/50 transition-colors`}
+                    className={`text-center py-3 px-2 border-b cursor-pointer flex-shrink-0 ${isToday ? 'bg-amber-50 rounded-t-2xl' : ''} hover:bg-amber-100/50 transition-colors`}
                     title="Doble clic para agregar comida"
                   >
-                    <p className={`text-sm font-medium ${isToday ? 'text-amber-600' : 'text-stone-500'}`}>
+                    <p className={`text-xs sm:text-sm font-medium truncate ${isToday ? 'text-amber-600' : 'text-stone-500'}`}>
                       {DAY_NAMES_FULL[day.getDay()]}
                     </p>
-                    <p className={`text-3xl font-bold mt-1 ${isToday ? 'text-amber-700' : 'text-stone-700'}`}>
+                    <p className={`text-2xl sm:text-3xl font-bold mt-1 ${isToday ? 'text-amber-700' : 'text-stone-700'}`}>
                       {day.getDate()}
                     </p>
                   </div>
 
                   {/* Meals Container - Simple list, height driven by content */}
-                  <div className="p-3 space-y-2 overflow-y-auto max-h-[400px]">
+                  <div className="p-2 sm:p-3 space-y-2 overflow-y-auto max-h-[400px]">
                     {getAllMealsForDay(day).map((meal) => {
                       const profile = profiles.find((p) => p.id === meal.responsible_id);
                       return (
                         <div
                           key={meal.id}
                           onClick={() => openEditMeal(meal)}
-                          className="group relative p-3 rounded-xl bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition-all duration-200 hover:shadow-md"
+                          className="group relative p-2 sm:p-3 rounded-xl bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition-all duration-200 hover:shadow-md"
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-xl">{MEAL_TYPE_ICONS[meal.meal_type_id]}</span>
+                            <span className="text-lg sm:text-xl">{MEAL_TYPE_ICONS[meal.meal_type_id]}</span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-base font-semibold text-amber-800 truncate">
+                              <p className="text-sm sm:text-base font-semibold text-amber-800 truncate">
                                 {meal.name}
                               </p>
                               {profile && (
-                                <p className="text-xs sm:text-sm text-stone-500 truncate">
+                                <p className="text-xs text-stone-500 truncate">
                                   👨‍🍳 {profile.full_name}
                                 </p>
                               )}
@@ -402,7 +402,7 @@ export default function CalendarPage() {
                               e.stopPropagation();
                               handleDelete(meal.id, meal.name);
                             }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200 flex items-center justify-center"
+                            className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200 flex items-center justify-center"
                           >
                             ×
                           </button>
@@ -411,7 +411,7 @@ export default function CalendarPage() {
                     })}
                     
                     {getAllMealsForDay(day).length === 0 && (
-                      <p className="text-center text-sm text-stone-400 py-2">
+                      <p className="text-center text-xs sm:text-sm text-stone-400 py-2">
                         Sin comidas
                       </p>
                     )}
@@ -422,7 +422,7 @@ export default function CalendarPage() {
                       className="w-full py-2 rounded-xl border-2 border-dashed border-stone-300 text-stone-500 text-sm font-medium hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-all duration-200 flex items-center justify-center gap-2"
                     >
                       <span className="text-lg">+</span>
-                      <span>Agregar Comida</span>
+                      <span className="hidden sm:inline">Agregar</span>
                     </button>
                   </div>
                 </div>
