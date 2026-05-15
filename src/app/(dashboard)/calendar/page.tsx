@@ -45,6 +45,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [mealToEdit, setMealToEdit] = useState<Meal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{show: boolean; id: string | null; name: string}>({show: false, id: null, name: ''});
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const supabase = createClient();
 
   const [formData, setFormData] = useState({
@@ -174,13 +175,22 @@ export default function CalendarPage() {
 
   const confirmDelete = async () => {
     if (!deleteConfirm.id) return;
-    const { error } = await supabase.from('meals').delete().eq('id', deleteConfirm.id);
+    const idToDelete = deleteConfirm.id;
+    setDeleteError(null);
+    const { error, count } = await supabase
+      .from('meals')
+      .delete({ count: 'exact' })
+      .eq('id', idToDelete);
     if (error) {
       console.error('Error al eliminar comida:', error);
-      alert(`No se pudo eliminar: ${error.message}`);
+      setDeleteError(`No se pudo eliminar: ${error.message}`);
       return;
     }
-    setMeals((prev) => prev.filter((m) => m.id !== deleteConfirm.id));
+    if (count === 0) {
+      setDeleteError('No se eliminó ninguna fila. Probablemente sea una política RLS de Supabase bloqueando el DELETE.');
+      return;
+    }
+    setMeals((prev) => prev.filter((m) => m.id !== idToDelete));
     setDeleteConfirm({ show: false, id: null, name: '' });
     loadData();
   };
@@ -274,6 +284,7 @@ export default function CalendarPage() {
             </h1>
           </div>
           <button
+            type="button"
             onClick={() => openAddMeal(new Date())}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-white font-semibold shadow-lg shadow-amber-500/30 hover:from-amber-600 hover:to-orange-600 transition-all duration-200 hover:scale-105"
           >
@@ -290,6 +301,7 @@ export default function CalendarPage() {
             {/* Navigation Arrows */}
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={navigatePrev}
                 className="p-2 rounded-xl bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
                 aria-label={viewMode === 'week' ? 'Semana anterior' : 'Mes anterior'}
@@ -300,6 +312,7 @@ export default function CalendarPage() {
               </button>
               
               <button
+                type="button"
                 onClick={navigateNext}
                 className="p-2 rounded-xl bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
                 aria-label={viewMode === 'week' ? 'Semana siguiente' : 'Mes siguiente'}
@@ -318,6 +331,7 @@ export default function CalendarPage() {
             {/* View Toggle & Today Button */}
             <div className="flex items-center gap-3">
               <button
+                type="button"
                 onClick={goToToday}
                 className="px-4 py-2 rounded-xl bg-stone-100 text-stone-700 font-medium hover:bg-stone-200 transition-colors"
               >
@@ -326,6 +340,7 @@ export default function CalendarPage() {
               
               <div className="inline-flex rounded-xl bg-stone-100 p-1">
                 <button
+                  type="button"
                   onClick={() => setViewMode('week')}
                   className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                     viewMode === 'week'
@@ -336,6 +351,7 @@ export default function CalendarPage() {
                   Semana
                 </button>
                 <button
+                  type="button"
                   onClick={() => setViewMode('month')}
                   className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                     viewMode === 'month'
@@ -359,7 +375,7 @@ export default function CalendarPage() {
               return (
                 <div
                   key={day.toISOString()}
-                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 min-w-0 ${
+                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 min-w-0 md:min-h-[420px] ${
                     isToday
                       ? 'border-amber-400 ring-2 ring-amber-400/50'
                       : 'border-amber-100'
@@ -404,7 +420,9 @@ export default function CalendarPage() {
                             </div>
                           </div>
                           <button
+                            type="button"
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               handleDelete(meal.id, meal.name);
                             }}
@@ -424,6 +442,7 @@ export default function CalendarPage() {
 
                     {/* Add Meal Button */}
                     <button
+                      type="button"
                       onClick={() => openAddMeal(day)}
                       className="w-full py-2 rounded-xl border-2 border-dashed border-stone-300 text-stone-500 text-sm font-medium hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-all duration-200 flex items-center justify-center gap-2"
                     >
@@ -534,6 +553,7 @@ export default function CalendarPage() {
                   </h2>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowMealForm(false)}
                   className="w-10 h-10 rounded-full bg-white/20 text-white text-2xl hover:bg-white/30 transition-colors flex items-center justify-center"
                 >
@@ -674,15 +694,23 @@ export default function CalendarPage() {
               <p className="text-stone-600 mb-6">
                 <span className="font-semibold text-amber-600">"{deleteConfirm.name}"</span> se eliminará permanentemente.
               </p>
+              {deleteError && (
+                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-left">
+                  <p className="text-sm font-semibold text-red-700">Error:</p>
+                  <p className="text-xs text-red-600 break-words">{deleteError}</p>
+                </div>
+              )}
               <div className="flex gap-3">
                 <button
-                  onClick={() => setDeleteConfirm({ show: false, id: null, name: '' })}
+                  type="button"
+                  onClick={() => { setDeleteConfirm({ show: false, id: null, name: '' }); setDeleteError(null); }}
                   className="flex-1 px-4 py-3 rounded-xl border-2 border-stone-200 text-stone-600 font-semibold hover:bg-stone-100 transition-all"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={confirmDelete}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); confirmDelete(); }}
                   className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold shadow-lg hover:from-red-600 hover:to-red-700 transition-all"
                 >
                   Eliminar
