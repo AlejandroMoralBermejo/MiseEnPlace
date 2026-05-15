@@ -347,14 +347,14 @@ export default function CalendarPage() {
 
         {/* Calendar Views */}
         {viewMode === 'week' ? (
-          /* Week View - Responsive: 7 cols on lg+, 3 cols on md, single col on mobile */
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-3 max-w-[1800px] mx-auto overflow-x-auto">
+          /* Week View - Responsive: single col on mobile, 3 on tablet, 5 on desktop, 7 on large screens */
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3 max-w-[1800px] mx-auto overflow-x-auto">
             {getWeekDays().map((day) => {
               const isToday = isSameDay(day, new Date());
               return (
                 <div
                   key={day.toISOString()}
-                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 min-w-[140px] ${
+                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 min-w-[160px] xl:min-w-[180px] ${
                     isToday
                       ? 'border-amber-400 ring-2 ring-amber-400/50'
                       : 'border-amber-100'
@@ -402,7 +402,7 @@ export default function CalendarPage() {
                               e.stopPropagation();
                               handleDelete(meal.id, meal.name);
                             }}
-                            className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm font-bold opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200 flex items-center justify-center"
+                            className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm font-bold transition-opacity hover:bg-red-200 flex items-center justify-center"
                           >
                             ×
                           </button>
