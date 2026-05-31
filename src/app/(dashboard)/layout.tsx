@@ -86,8 +86,8 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Mobile Header */}
-      <div className="fixed bottom-0 left-0 right-0 bg-stone-800 lg:hidden">
+      {/* Mobile Bottom Nav */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-stone-800 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.15)] lg:hidden">
         <nav className="flex justify-around py-3">
           {navItems.map((item) => (
             <Link
@@ -105,7 +105,7 @@ export default function DashboardLayout({
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 pb-20 lg:pb-0">
+      <main className="flex-1 min-w-0 pb-[calc(7rem_+_env(safe-area-inset-bottom))] lg:pb-0">
         {children}
       </main>
     </div>
