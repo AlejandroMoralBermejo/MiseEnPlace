@@ -1,27 +1,17 @@
 # MiseEnPlace - Setup Instructions
 
+Este repositorio es público: no escribas aquí contraseñas ni correos reales.
+
 ## 1. Crear usuarios en Supabase Dashboard
 
-1. Ir a: https://supabase.com/dashboard/project/ewkjxzgardgngczjnpbh/authentication/users
-2. Click **Add User** → crear cada usuario con la misma contraseña:
+1. Ir a **Authentication > Users** en el dashboard del proyecto.
+2. Click **Add User** y crear cada usuario con una contraseña propia.
 
-| Email | Contraseña |
-|-------|------------|
-| ***REMOVED*** | ***REMOVED*** |
-| ***REMOVED*** | ***REMOVED*** |
-| ***REMOVED*** | ***REMOVED*** |
-| ***REMOVED*** | ***REMOVED*** |
+También se puede usar `scripts/seed.ts`, que lee `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SEED_PASSWORD` y `SEED_USERS` del entorno.
 
 ## 2. Actualizar nombres de profiles
 
-Ejecutar este SQL en el **SQL Editor** de Supabase:
-
-```sql
-UPDATE profiles SET full_name = 'Antonio' WHERE id = (SELECT id FROM auth.users WHERE email = '***REMOVED***');
-UPDATE profiles SET full_name = 'Pili' WHERE id = (SELECT id FROM auth.users WHERE email = '***REMOVED***');
-UPDATE profiles SET full_name = 'Alejandro' WHERE id = (SELECT id FROM auth.users WHERE email = '***REMOVED***');
-UPDATE profiles SET full_name = 'Javier' WHERE id = (SELECT id FROM auth.users WHERE email = '***REMOVED***');
-```
+Ejecutar `scripts/seed.sql` en el **SQL Editor** de Supabase, con los correos reales.
 
 ## 3. Agregar meal_types si no existen
 
@@ -37,10 +27,9 @@ INSERT INTO meal_types (name) VALUES
 ON CONFLICT (name) DO NOTHING;
 ```
 
-## 4. Credenciales de acceso
+## Si el proyecto aparece pausado
 
-- **Email**: cualquiera de los 4 emails de arriba
-- **Contraseña**: `***REMOVED***`
+Supabase pausa los proyectos del plan gratuito tras un periodo sin actividad. Mientras está pausado, la app no puede conectar. Se reanuda con **Restore project** en el dashboard.
 
 ## Nota sobre "Recordar usuario"
 

@@ -1,20 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://ewkjxzgardgngczjnpbh.supabase.co';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const users = [
-  { email: '***REMOVED***', name: 'Antonio' },
-  { email: '***REMOVED***', name: 'Pili' },
-  { email: '***REMOVED***', name: 'Alejandro' },
-  { email: '***REMOVED***', name: 'Javier' },
-];
-
-const password = '***REMOVED***'; // La contraseña que vos设置
+const password = process.env.SEED_PASSWORD || '';
+// Formato: [{"email":"persona@ejemplo.com","name":"Persona"}]
+const users: { email: string; name: string }[] = JSON.parse(process.env.SEED_USERS || '[]');
 
 async function seed() {
-  if (!supabaseServiceKey) {
-    console.error('Necesitas SUPABASE_SERVICE_ROLE_KEY en tu .env');
+  if (!supabaseUrl || !supabaseServiceKey || !password || users.length === 0) {
+    console.error('Faltan NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SEED_PASSWORD o SEED_USERS');
     process.exit(1);
   }
 
@@ -31,27 +25,26 @@ async function seed() {
       .maybeSingle();
 
     if (existing) {
-      console.log(`✓ ${user.email} ya existe (${user.name})`);
+      console.log(`✓ ${user.name} ya existe`);
       continue;
     }
 
     // Crear usuario via auth
-    const { data, error } = await supabase.auth.admin.createUser({
+    const { error } = await supabase.auth.admin.createUser({
       email: user.email,
-      password: password,
+      password,
       email_confirm: true,
       user_metadata: { full_name: user.name },
     });
 
     if (error) {
-      console.error(`✗ Error creando ${user.email}: ${error.message}`);
+      console.error(`✗ Error creando ${user.name}: ${error.message}`);
     } else {
-      console.log(`✓ Creado: ${user.email} (${user.name})`);
+      console.log(`✓ Creado: ${user.name}`);
     }
   }
 
   console.log('\n¡Seed completo!');
-  console.log(`Contraseña para todos: ${password}`);
 }
 
 seed();
