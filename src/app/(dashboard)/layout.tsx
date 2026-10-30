@@ -7,12 +7,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isAuthRetryableFetchError, type User } from '@supabase/supabase-js';
 import { LoadingScreen, primaryButtonClass } from '@/components/Dialog';
-import { BoxIcon, CalendarIcon, CartIcon, Logo } from '@/components/Icons';
+import { BoxIcon, CalendarIcon, CartIcon, Logo, UserIcon } from '@/components/Icons';
 
 const navItems = [
   { href: '/calendar', label: 'Calendario', icon: <CalendarIcon /> },
   { href: '/inventory', label: 'Inventario', icon: <BoxIcon /> },
   { href: '/shopping', label: 'Compras', icon: <CartIcon /> },
+  { href: '/account', label: 'Mi usuario', icon: <UserIcon /> },
 ];
 
 export default function DashboardLayout({
@@ -44,6 +45,11 @@ export default function DashboardLayout({
       setLoading(false);
     };
     getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'USER_UPDATED' && session) setUser(session.user);
+    });
+    return () => subscription.unsubscribe();
   }, [router, supabase]);
 
   const handleSignOut = async () => {
@@ -107,7 +113,7 @@ export default function DashboardLayout({
       {/* Mobile Bottom Nav */}
       <nav
         aria-label="Principal"
-        className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-3 border-t border-line bg-ground pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-4 border-t border-line bg-ground pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {navItems.map((item) => {
           const active = pathname === item.href;

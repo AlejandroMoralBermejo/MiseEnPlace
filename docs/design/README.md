@@ -72,6 +72,7 @@ Los iconos de la app se regeneran con `node scripts/generate-icons.mjs`. El dibu
 - **Añadir en móvil:** en Calendario (semana) e Inventario, el botón queda fijo sobre la barra inferior.
 - **Mes en escritorio:** se añade una comida pulsando el número del día.
 - **Logo:** las maquetas de pantallas no lo muestran, porque se eligió después.
+- **Mi usuario:** pantalla sin maqueta, añadida después. Es la cuarta pestaña y permite cambiar el nombre, instalar la app y cerrar sesión.
 
 ## Decisiones de producto
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
+import { InstallPromptCapture } from "@/components/InstallPromptCapture";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -36,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${figtree.variable} ${bricolage.variable} font-sans antialiased`}>
+        <InstallPromptCapture />
         {children}
       </body>
     </html>

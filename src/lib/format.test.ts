@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { formatQuantity } from './format';
+import { cleanName, formatQuantity } from './format';
+
+describe('cleanName', () => {
+  it('trims and collapses spaces', () => {
+    expect(cleanName('  Ana   María ')).toBe('Ana María');
+  });
+
+  it('returns an empty string for blanks', () => {
+    expect(cleanName('   ')).toBe('');
+  });
+});
 
 describe('formatQuantity', () => {
   it('uses the singular unit for one', () => {
