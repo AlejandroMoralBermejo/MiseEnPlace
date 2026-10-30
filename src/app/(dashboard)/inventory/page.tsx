@@ -2,8 +2,22 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import {
+  ConfirmDialog,
+  FormDialog,
+  LoadingScreen,
+  fieldClass,
+  labelClass,
+  primaryButtonClass,
+  iconButtonClass,
+  secondaryButtonClass,
+} from '@/components/Dialog';
 import { ErrorBanner } from '@/components/ErrorBanner';
+import { TrashIcon } from '@/components/Icons';
+import { formatQuantity } from '@/lib/format';
 import { type InventoryItem } from '@/types';
+
+const UNITS = ['unidades', 'kg', 'g', 'litros', 'ml', 'paquetes', 'latas'];
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -96,10 +110,6 @@ export default function InventoryPage() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    setDeleteConfirm({ show: true, id, name });
-  };
-
   const confirmDelete = async () => {
     if (deleteConfirm.id) {
       const { error: deleteError } = await supabase.from('inventory').delete().eq('id', deleteConfirm.id);
@@ -118,225 +128,156 @@ export default function InventoryPage() {
     setShowForm(true);
   };
 
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingItem(null);
+  };
+
   const filteredItems = items.filter((item) =>
     item.ingredient_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const units = ['unidades', 'kg', 'g', 'litros', 'ml', 'paquetes', 'latas'];
-
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600"></div>
-          <p className="text-lg font-medium text-stone-600">Cargando inventario...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen label="Cargando inventario..." />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-4 lg:p-8">
+    <div className="flex min-h-screen flex-col gap-4 p-4 lg:gap-5 lg:p-7">
       {error ? (
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
       ) : (
         loadError && <ErrorBanner message={loadError} />
       )}
 
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">📦</span>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-              Inventario
-            </h1>
-          </div>
-          <button
-            onClick={openAddForm}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-white font-semibold shadow-lg shadow-amber-500/30 hover:from-amber-600 hover:to-orange-600 transition-all duration-200 hover:scale-105"
-          >
-            <span className="text-xl">+</span>
-            Agregar Ingrediente
-          </button>
-        </div>
+      <header className="flex items-center justify-between gap-4">
+        <h1 className="font-display text-[40px] font-extrabold leading-none tracking-tight lg:text-[44px]">
+          Inventario
+        </h1>
+        <button onClick={openAddForm} className={`hidden lg:block ${primaryButtonClass}`}>
+          Añadir ingrediente
+        </button>
       </header>
 
-      {/* Search */}
-      <div className="mb-6">
+      <div className="lg:max-w-[420px]">
+        <label htmlFor="search" className="mb-1 block text-sm font-semibold">Buscar ingrediente</label>
         <input
-          type="text"
+          id="search"
+          type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar ingrediente..."
-          className="w-full rounded-xl border border-amber-200 bg-white/80 px-4 py-3 text-lg shadow-md focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all"
+          className={fieldClass}
         />
       </div>
 
-      {/* Items Grid */}
-      {loadError ? null : filteredItems.length === 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-white/80 p-12 text-center shadow-lg">
-          <div className="text-6xl mb-4">📦</div>
-          <h2 className="text-2xl font-bold text-stone-800">
+      {!loadError && filteredItems.length === 0 && (
+        <div className="py-12 text-center">
+          <h2 className="font-display text-2xl font-extrabold">
             {searchQuery ? 'No encontrado' : 'Inventario vacío'}
           </h2>
-          <p className="mt-2 text-stone-600">
-            {searchQuery ? 'Probá con otro nombre' : 'Agregá tu primer ingrediente para empezar'}
+          <p className="mt-2 text-muted">
+            {searchQuery ? 'Prueba con otro nombre' : 'Añade tu primer ingrediente para empezar'}
           </p>
         </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="group rounded-2xl border border-amber-200 bg-white/90 p-5 shadow-lg shadow-amber-100/50 transition-all duration-200 hover:shadow-xl hover:scale-105"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-stone-800">{item.ingredient_name}</h3>
-                  <p className="mt-2 text-3xl font-bold text-amber-600">
-                    {item.quantity}
-                    <span className="ml-2 text-base font-medium text-stone-500">{item.unit}</span>
-                  </p>
-                </div>
-                <div className="flex gap-2 transition-all duration-200">
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="rounded-xl bg-amber-100 p-3 text-amber-600 hover:bg-amber-200 transition-colors shadow-md"
-                    title="Editar"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id, item.ingredient_name)}
-                    className="rounded-xl bg-red-100 p-3 text-red-600 hover:bg-red-200 transition-colors shadow-md"
-                    title="Eliminar"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-              {item.quantity === 0 && (
-                <div className="mt-3 rounded-xl bg-red-100 px-3 py-2 text-center text-sm font-bold text-red-700">
-                  ⚠️ AGOTADO
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
       )}
 
-      {/* Modal Form */}
+      <div className="grid gap-x-8 lg:grid-cols-2 xl:grid-cols-3">
+        {filteredItems.map((item) => (
+          <div key={item.id} className="flex min-h-14 items-center gap-1 border-b border-line">
+            <button
+              onClick={() => handleEdit(item)}
+              className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 text-left hover:text-primary"
+            >
+              <span className="min-w-0 truncate font-medium">{item.ingredient_name}</span>
+              {item.quantity === 0 ? (
+                <span className="flex-none font-semibold text-danger">Agotado</span>
+              ) : (
+                <span className="flex-none font-semibold">{formatQuantity(item.quantity, item.unit)}</span>
+              )}
+            </button>
+            <button
+              onClick={() => setDeleteConfirm({ show: true, id: item.id, name: item.ingredient_name })}
+              aria-label={`Eliminar ${item.ingredient_name}`}
+              className={`text-danger ${iconButtonClass}`}
+            >
+              <TrashIcon />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={openAddForm}
+        className={`sticky bottom-[calc(5rem_+_env(safe-area-inset-bottom))] mt-auto min-h-[52px] lg:hidden ${primaryButtonClass}`}
+      >
+        Añadir ingrediente
+      </button>
+
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-stone-800">
-                {editingItem ? '✏️ Editar Ingrediente' : '➕ Agregar Ingrediente'}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingItem(null);
-                }}
-                className="text-2xl text-stone-400 hover:text-stone-600 transition-colors"
-              >
-                ×
-              </button>
+        <FormDialog title={editingItem ? 'Editar ingrediente' : 'Añadir ingrediente'} onClose={closeForm}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="ingredient_name" className={labelClass}>Ingrediente</label>
+              <input
+                id="ingredient_name"
+                type="text"
+                value={formData.ingredient_name}
+                onChange={(e) => setFormData({ ...formData, ingredient_name: e.target.value })}
+                required
+                className={fieldClass}
+              />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Ingrediente</label>
+                <label htmlFor="quantity" className={labelClass}>Cantidad</label>
                 <input
-                  type="text"
-                  value={formData.ingredient_name}
-                  onChange={(e) => setFormData({ ...formData, ingredient_name: e.target.value })}
+                  id="quantity"
+                  type="number"
+                  value={Number.isNaN(formData.quantity) ? '' : formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
+                  min="0"
+                  step="0.1"
                   required
-                  className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 text-lg focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all"
-                  placeholder="Ej: Harina"
+                  className={fieldClass}
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Cantidad</label>
-                  <input
-                    type="number"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
-                    min="0"
-                    step="0.1"
-                    required
-                    className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 text-lg focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
-                  <select
-                    value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 text-lg focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all"
-                  >
-                    {units.map((unit) => (
-                      <option key={unit} value={unit}>{unit}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingItem(null);
-                  }}
-                  className="flex-1 rounded-xl border border-stone-300 py-3 text-lg font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+              <div>
+                <label htmlFor="unit" className={labelClass}>Unidad</label>
+                <select
+                  id="unit"
+                  value={formData.unit}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  className={fieldClass}
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-3 text-lg font-semibold text-white shadow-lg hover:from-amber-600 hover:to-orange-600 transition-all"
-                >
-                  {editingItem ? 'Guardar' : 'Agregar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Custom Delete Confirmation Modal */}
-      {deleteConfirm.show && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl transform animate-[fadeIn_0.2s_ease-out]">
-            <div className="text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <span className="text-3xl">🗑️</span>
-              </div>
-              <h3 className="text-xl font-bold text-stone-800 mb-2">¿Eliminar ingrediente?</h3>
-              <p className="text-stone-600 mb-6">
-                <span className="font-semibold text-amber-600">&quot;{deleteConfirm.name}&quot;</span> se eliminará permanentemente del inventario.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteConfirm({ show: false, id: null, name: '' })}
-                  className="flex-1 px-4 py-3 rounded-xl border-2 border-stone-200 text-stone-600 font-semibold hover:bg-stone-100 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold shadow-lg hover:from-red-600 hover:to-red-700 transition-all"
-                >
-                  Eliminar
-                </button>
+                  {UNITS.map((unit) => (
+                    <option key={unit} value={unit}>{unit}</option>
+                  ))}
+                </select>
               </div>
             </div>
-          </div>
-        </div>
+
+            <div className="flex flex-col gap-1.5 pt-2 lg:flex-row-reverse">
+              <button type="submit" className={`min-h-[52px] lg:flex-1 ${primaryButtonClass}`}>
+                {editingItem ? 'Guardar cambios' : 'Añadir'}
+              </button>
+              <button type="button" onClick={closeForm} className={`lg:flex-1 ${secondaryButtonClass}`}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </FormDialog>
+      )}
+
+      {deleteConfirm.show && (
+        <ConfirmDialog
+          title="¿Eliminar ingrediente?"
+          confirmLabel="Eliminar"
+          danger
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteConfirm({ show: false, id: null, name: '' })}
+        >
+          <span className="font-semibold text-ink">{deleteConfirm.name}</span> se eliminará del inventario.
+        </ConfirmDialog>
       )}
     </div>
   );

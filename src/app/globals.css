@@ -1,17 +1,51 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
+  --ground: #0f3440;
+  --surface: #17444f;
+  --ink: #f2f2e8;
+  --muted: #c4d6d8;
+  --line: #62919b;
+  --primary: #f2b632;
+  --on-primary: #0f3440;
+  --accent: #f7c873;
+  --danger: #ffb3a8;
+  --success: #a5e2c0;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-meal-1: #f2b632;
+  --color-meal-2: #f2ae93;
+  --color-meal-3: #a5d0e6;
+  --color-meal-4: #bfe3b4;
+  --color-meal-5: #e2bbd6;
+  --font-sans: var(--font-figtree);
+  --font-display: var(--font-bricolage);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--ground);
+  color: var(--ink);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }

@@ -6,6 +6,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isAuthRetryableFetchError, type User } from '@supabase/supabase-js';
+import { LoadingScreen, primaryButtonClass } from '@/components/Dialog';
+import { BoxIcon, CalendarIcon, CartIcon } from '@/components/Icons';
+
+const navItems = [
+  { href: '/calendar', label: 'Calendario', icon: <CalendarIcon /> },
+  { href: '/inventory', label: 'Inventario', icon: <BoxIcon /> },
+  { href: '/shopping', label: 'Compras', icon: <CartIcon /> },
+];
 
 export default function DashboardLayout({
   children,
@@ -45,90 +53,79 @@ export default function DashboardLayout({
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-stone-50">
-        <div className="text-xl text-stone-600">Cargando...</div>
-      </div>
-    );
+    return <LoadingScreen label="Cargando..." />;
   }
 
   if (connectionFailed) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-stone-50 p-6 text-center">
-        <p className="text-xl font-semibold text-stone-800">No se puede conectar con la base de datos</p>
-        <p className="text-stone-600">Es posible que el proyecto de Supabase esté pausado.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="rounded-lg bg-stone-800 px-4 py-2 text-white hover:bg-stone-700"
-        >
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="font-display text-2xl font-extrabold">No se puede conectar con la base de datos</p>
+        <p className="text-muted">Es posible que el proyecto de Supabase esté pausado.</p>
+        <button onClick={() => window.location.reload()} className={primaryButtonClass}>
           Reintentar
         </button>
       </div>
     );
   }
 
-  const navItems = [
-    { href: '/calendar', label: 'Calendario', icon: '📅' },
-    { href: '/inventory', label: 'Inventario', icon: '📦' },
-    { href: '/shopping', label: 'Compras', icon: '🛒' },
-  ];
-
   return (
-    <div className="flex min-h-screen bg-stone-50">
+    <div className="flex min-h-screen">
       {/* Sidebar - Desktop */}
-      <aside className="hidden w-64 flex-col bg-stone-800 text-white lg:flex">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold">MiseEnPlace</h1>
-        </div>
-        <nav className="flex-1 space-y-2 px-4">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-4 py-3 text-lg transition-colors ${
-                pathname === item.href
-                  ? 'bg-stone-700 font-medium'
-                  : 'hover:bg-stone-700'
-              }`}
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
+      <aside className="hidden w-56 flex-none flex-col gap-7 bg-surface px-4 py-7 lg:flex">
+        <p className="px-3 font-display text-2xl font-extrabold tracking-tight">MiseEnPlace</p>
+        <nav aria-label="Principal" className="flex flex-col gap-1">
+          {navItems.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={`flex min-h-12 items-center gap-3 rounded-xl px-3 transition-colors ${
+                  active ? 'bg-primary font-semibold text-on-primary' : 'hover:bg-ground'
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
-        <div className="border-t border-stone-700 p-4">
-          <div className="mb-4 text-sm text-stone-300">
-            {user?.email}
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="w-full rounded-lg bg-stone-700 px-4 py-2 text-left text-lg hover:bg-stone-600"
-          >
+        <div className="mt-auto flex flex-col items-start gap-2 border-t border-line px-3 pt-4">
+          <p className="max-w-full truncate text-[15px] font-medium">
+            {user?.user_metadata?.full_name || user?.email}
+          </p>
+          <button onClick={handleSignOut} className="min-h-11 text-[15px] font-medium text-muted hover:text-ink">
             Cerrar sesión
           </button>
         </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-stone-800 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.15)] lg:hidden">
-        <nav className="flex justify-around py-3">
-          {navItems.map((item) => (
+      <nav
+        aria-label="Principal"
+        className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-3 border-t border-line bg-ground pb-[env(safe-area-inset-bottom)] lg:hidden"
+      >
+        {navItems.map((item) => {
+          const active = pathname === item.href;
+          return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 px-4 py-2 ${
-                pathname === item.href ? 'text-white' : 'text-stone-400'
+              aria-current={active ? 'page' : undefined}
+              className={`flex min-h-[62px] flex-col items-center justify-center gap-1 text-[13px] ${
+                active ? 'font-semibold text-primary' : ''
               }`}
             >
-              <span className="text-2xl">{item.icon}</span>
-              <span className="text-sm">{item.label}</span>
+              {item.icon}
+              {item.label}
             </Link>
-          ))}
-        </nav>
-      </div>
+          );
+        })}
+      </nav>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 pb-[calc(7rem_+_env(safe-area-inset-bottom))] lg:pb-0">
+      <main className="min-w-0 flex-1 pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] lg:pb-0">
         {children}
       </main>
     </div>

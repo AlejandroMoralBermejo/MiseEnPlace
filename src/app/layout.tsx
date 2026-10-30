@@ -1,19 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const figtree = Figtree({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-figtree",
+});
+
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  variable: "--font-bricolage",
 });
 
 export const metadata: Metadata = {
   title: "MiseEnPlace - Planificador de comidas familiares",
-  description: "Organiza las comidas de tu familia, manage el inventario y crea listas de compras.",
+  description: "Organiza las comidas de tu familia, gestiona el inventario y crea listas de compras.",
 };
 
 export const viewport: Viewport = {
   viewportFit: "cover",
+  themeColor: "#0f3440",
 };
 
 export default function RootLayout({
@@ -23,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${figtree.variable} ${bricolage.variable} font-sans antialiased`}>
         {children}
       </body>
     </html>

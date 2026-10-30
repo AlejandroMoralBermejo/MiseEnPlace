@@ -2,7 +2,19 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import {
+  ConfirmDialog,
+  FormDialog,
+  LoadingScreen,
+  fieldClass,
+  iconButtonClass,
+  labelClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+  textareaClass,
+} from '@/components/Dialog';
 import { ErrorBanner } from '@/components/ErrorBanner';
+import { ChevronLeftIcon, ChevronRightIcon, TrashIcon } from '@/components/Icons';
 import {
   formatDateKey,
   getMonthDays,
@@ -13,29 +25,26 @@ import {
 } from '@/lib/dates';
 import { type Meal, type MealType, type Profile } from '@/types';
 
-const MEAL_TYPE_ICONS: Record<number, string> = {
-  1: '☕',
-  2: '🍽️',
-  3: '🌙',
-  4: '🫖',
-  5: '🍿',
+const MEAL_TYPE_COLORS: Record<number, string> = {
+  1: 'bg-meal-1',
+  2: 'bg-meal-2',
+  3: 'bg-meal-3',
+  4: 'bg-meal-4',
+  5: 'bg-meal-5',
 };
 
-const MEAL_TYPE_COLORS: Record<number, { bg: string; border: string; text: string; hover: string }> = {
-  1: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', hover: 'hover:bg-amber-100' },
-  2: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', hover: 'hover:bg-orange-100' },
-  3: { bg: 'bg-stone-100', border: 'border-stone-300', text: 'text-stone-800', hover: 'hover:bg-stone-200' },
-  4: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', hover: 'hover:bg-yellow-100' },
-  5: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-800', hover: 'hover:bg-rose-100' },
-};
-
-const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MONDAY_FIRST_DAY_NAMES = [...DAY_NAMES.slice(1), DAY_NAMES[0]];
+const DAY_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const DAY_NAMES_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function isSameDay(d1: Date, d2: Date): boolean {
   return d1.toDateString() === d2.toDateString();
+}
+
+function mealColor(meal: Meal): string {
+  return MEAL_TYPE_COLORS[meal.meal_type_id] || MEAL_TYPE_COLORS[1];
 }
 
 export default function CalendarPage() {
@@ -44,6 +53,7 @@ export default function CalendarPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('week');
+  // Also the selected day on mobile, so moving between weeks or months keeps a day in view.
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showMealForm, setShowMealForm] = useState(false);
   const [mealToEdit, setMealToEdit] = useState<Meal | null>(null);
@@ -63,18 +73,19 @@ export default function CalendarPage() {
     responsible_id: '',
   });
 
+  const { start, end } = getVisibleRange(currentDate, viewMode);
+
   // The spinner only covers the first load: realtime refreshes must not blank the page.
   const loadData = useCallback(async () => {
-    const { start, end } = getVisibleRange(currentDate, viewMode);
-
     const [mealsRes, mealTypesRes, profilesRes] = await Promise.all([
       supabase
         .from('meals')
         .select('*, meal_types(*), profiles(*)')
         .gte('date', start)
         .lte('date', end)
-        .order('date'),
-      supabase.from('meal_types').select('*'),
+        .order('date')
+        .order('meal_type_id'),
+      supabase.from('meal_types').select('*').order('id'),
       supabase.from('profiles').select('*'),
     ]);
 
@@ -88,7 +99,7 @@ export default function CalendarPage() {
       setLoadError(null);
     }
     setLoading(false);
-  }, [currentDate, viewMode, supabase]);
+  }, [start, end, supabase]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after the await
@@ -113,8 +124,13 @@ export default function CalendarPage() {
     return meals.filter((meal) => meal.date === dateStr);
   };
 
-  const toggleDayExpand = (e: React.MouseEvent, dateKey: string) => {
-    e.stopPropagation();
+  const getMealTypeName = (meal: Meal): string =>
+    meal.meal_types?.name || mealTypes.find((type) => type.id === meal.meal_type_id)?.name || '';
+
+  const getResponsibleName = (meal: Meal): string =>
+    profiles.find((profile) => profile.id === meal.responsible_id)?.full_name || 'Sin asignar';
+
+  const toggleDayExpand = (dateKey: string) => {
     setExpandedDays((prev) => {
       const next = new Set(prev);
       if (next.has(dateKey)) {
@@ -126,14 +142,14 @@ export default function CalendarPage() {
     });
   };
 
-  const openAddMeal = (date: Date, mealTypeId?: number) => {
+  const openAddMeal = (date: Date) => {
     setMealToEdit(null);
     setFormData({
       name: '',
       ingredients: '',
       preparation: '',
       date: formatDateKey(date),
-      meal_type_id: mealTypeId || 1,
+      meal_type_id: 1,
       responsible_id: '',
     });
     setShowMealForm(true);
@@ -150,6 +166,11 @@ export default function CalendarPage() {
       responsible_id: meal.responsible_id || '',
     });
     setShowMealForm(true);
+  };
+
+  const closeMealForm = () => {
+    setShowMealForm(false);
+    setMealToEdit(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -183,10 +204,6 @@ export default function CalendarPage() {
     loadData();
   };
 
-  const handleDelete = async (id: string, mealName: string) => {
-    setDeleteConfirm({ show: true, id, name: mealName });
-  };
-
   const confirmDelete = async () => {
     if (!deleteConfirm.id) return;
     const idToDelete = deleteConfirm.id;
@@ -206,6 +223,7 @@ export default function CalendarPage() {
     }
     setMeals((prev) => prev.filter((m) => m.id !== idToDelete));
     setDeleteConfirm({ show: false, id: null, name: '' });
+    closeMealForm();
     loadData();
   };
 
@@ -229,485 +247,416 @@ export default function CalendarPage() {
 
   const getWeekLabel = (): string => {
     const days = getWeekDays(currentDate);
-    const start = days[0];
-    const end = days[6];
-    if (start.getMonth() === end.getMonth()) {
-      return `${MONTH_NAMES[start.getMonth()]} ${start.getFullYear()}`;
-    }
-    return `${DAY_NAMES_FULL[start.getDay()]} ${start.getDate()} - ${DAY_NAMES_FULL[end.getDay()]} ${end.getDate()} ${MONTH_NAMES[end.getMonth()]} ${end.getFullYear()}`;
+    const first = days[0];
+    const last = days[6];
+    return `${first.getDate()} ${MONTH_SHORT[first.getMonth()]} – ${last.getDate()} ${MONTH_SHORT[last.getMonth()]}`;
   };
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600"></div>
-          <p className="text-lg font-medium text-stone-600">Cargando calendario...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen label="Cargando calendario..." />;
   }
 
+  const today = new Date();
+  const selectedDayTitle = `${DAY_NAMES_FULL[currentDate.getDay()]} ${currentDate.getDate()}`;
+  const selectedDayMeals = getAllMealsForDay(currentDate);
+  const unit = viewMode === 'week' ? 'Semana' : 'Mes';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-4 lg:p-6">
+    <div className="flex min-h-screen flex-col gap-3 p-4 lg:gap-5 lg:p-7">
       {error ? (
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
       ) : (
         loadError && <ErrorBanner message={loadError} />
       )}
 
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🍽️</span>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-              Calendario de Comidas
-            </h1>
-          </div>
-          <button
-            type="button"
-            onClick={() => openAddMeal(new Date())}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-white font-semibold shadow-lg shadow-amber-500/30 hover:from-amber-600 hover:to-orange-600 transition-all duration-200 hover:scale-105"
-          >
-            <span className="text-xl">+</span>
-            Agregar Comida
-          </button>
-        </div>
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-[40px] font-extrabold leading-none tracking-tight lg:text-[44px]">
+          <span className="lg:hidden">
+            {viewMode === 'week' ? selectedDayTitle : MONTH_NAMES[currentDate.getMonth()]}
+          </span>
+          <span className="hidden lg:inline">{getMonthLabel()}</span>
+        </h1>
+        <button type="button" onClick={goToToday} className={`lg:hidden ${secondaryButtonClass}`}>Hoy</button>
+        <button type="button" onClick={() => openAddMeal(currentDate)} className={`hidden lg:block ${primaryButtonClass}`}>
+          Añadir comida
+        </button>
       </header>
 
-      <main className="py-2">
-        {/* Navigation Bar */}
-        <div className="bg-white rounded-2xl shadow-lg shadow-amber-100/50 border border-amber-100 p-4 mb-6 max-w-[1800px] mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            {/* Navigation Arrows */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="p-2 rounded-xl bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
-                aria-label={viewMode === 'week' ? 'Semana anterior' : 'Mes anterior'}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => navigate(1)}
-                className="p-2 rounded-xl bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
-                aria-label={viewMode === 'week' ? 'Semana siguiente' : 'Mes siguiente'}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-
-              {/* Date Label */}
-              <h2 className="text-lg sm:text-xl font-semibold text-stone-800 ml-2">
-                {viewMode === 'week' ? getWeekLabel() : getMonthLabel()}
-              </h2>
-            </div>
-
-            {/* View Toggle & Today Button */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={goToToday}
-                className="px-4 py-2 rounded-xl bg-stone-100 text-stone-700 font-medium hover:bg-stone-200 transition-colors"
-              >
-                Hoy
-              </button>
-              
-              <div className="inline-flex rounded-xl bg-stone-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('week')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                    viewMode === 'week'
-                      ? 'bg-white text-amber-700 shadow-sm'
-                      : 'text-stone-500 hover:text-stone-700'
-                  }`}
-                >
-                  Semana
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('month')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                    viewMode === 'month'
-                      ? 'bg-white text-amber-700 shadow-sm'
-                      : 'text-stone-500 hover:text-stone-700'
-                  }`}
-                >
-                  Mes
-                </button>
-              </div>
-            </div>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-0.5 lg:gap-1">
+          <button type="button" onClick={() => navigate(-1)} aria-label={`${unit} anterior`} className={iconButtonClass}>
+            <ChevronLeftIcon />
+          </button>
+          <p className="text-[15px] font-medium text-muted lg:text-base">
+            {viewMode === 'week' ? getWeekLabel() : currentDate.getFullYear()}
+          </p>
+          <button type="button" onClick={() => navigate(1)} aria-label={`${unit} siguiente`} className={iconButtonClass}>
+            <ChevronRightIcon />
+          </button>
+          <button type="button" onClick={goToToday} className={`ml-2 hidden lg:block ${secondaryButtonClass}`}>Hoy</button>
         </div>
+        <div className="flex rounded-full bg-surface p-0.5">
+          {(['week', 'month'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              aria-pressed={viewMode === mode}
+              className={`min-h-10 rounded-full px-3 text-sm lg:px-4 lg:text-[15px] ${
+                viewMode === mode ? 'bg-ink font-semibold text-ground' : 'font-medium'
+              }`}
+            >
+              {mode === 'week' ? 'Semana' : 'Mes'}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* Calendar Views */}
-        {viewMode === 'week' ? (
-          /* Week View - single col on mobile, full 7-day grid from md+ */
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 lg:gap-3 max-w-[1800px] mx-auto">
-            {getWeekDays(currentDate).map((day) => {
-              const isToday = isSameDay(day, new Date());
+      {viewMode === 'week' ? (
+        <>
+          {/* Mobile: one day at a time */}
+          <div className="grid grid-cols-7 gap-1 lg:hidden">
+            {getWeekDays(currentDate).map((day, index) => {
+              const selected = isSameDay(day, currentDate);
+              const isToday = isSameDay(day, today);
+              return (
+                <button
+                  key={day.toISOString()}
+                  type="button"
+                  onClick={() => setCurrentDate(day)}
+                  aria-pressed={selected}
+                  aria-label={`${DAY_NAMES_FULL[day.getDay()]} ${day.getDate()}`}
+                  className={`flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl ${
+                    selected ? 'bg-primary text-on-primary' : isToday ? 'text-primary' : ''
+                  }`}
+                >
+                  <span className="text-xs font-medium">{DAY_LETTERS[index]}</span>
+                  <span className="text-[17px] font-semibold">{day.getDate()}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-2 lg:hidden">
+            {selectedDayMeals.map((meal) => (
+              <article key={meal.id} className="flex items-start gap-1 rounded-2xl bg-surface py-3 pl-3.5 pr-1">
+                <button
+                  type="button"
+                  onClick={() => openEditMeal(meal)}
+                  className="flex min-w-0 flex-1 flex-col items-start gap-1.5 text-left"
+                >
+                  <span className={`rounded-[10px] px-2 py-0.5 text-xs font-semibold text-on-primary ${mealColor(meal)}`}>
+                    {getMealTypeName(meal)}
+                  </span>
+                  <span className="font-display text-xl font-medium leading-tight">{meal.name}</span>
+                  <span className="text-sm text-muted">{getResponsibleName(meal)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm({ show: true, id: meal.id, name: meal.name })}
+                  aria-label={`Eliminar ${meal.name}`}
+                  className={`text-danger ${iconButtonClass}`}
+                >
+                  <TrashIcon />
+                </button>
+              </article>
+            ))}
+            {selectedDayMeals.length === 0 && !loadError && (
+              <p className="py-6 text-center text-muted">Sin comidas este día</p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openAddMeal(currentDate)}
+            className={`sticky bottom-[calc(5rem_+_env(safe-area-inset-bottom))] mt-auto min-h-[52px] lg:hidden ${primaryButtonClass}`}
+          >
+            Añadir comida
+          </button>
+
+          {/* Desktop: the whole week */}
+          <div className="hidden flex-1 grid-cols-7 gap-2 lg:grid">
+            {getWeekDays(currentDate).map((day, index) => {
+              const isToday = isSameDay(day, today);
+              return (
+                <section
+                  key={day.toISOString()}
+                  className={`flex min-h-[560px] min-w-0 flex-col gap-2 rounded-2xl p-2.5 ${
+                    isToday ? 'border-2 border-primary' : 'border border-line'
+                  }`}
+                >
+                  <h2
+                    className={`flex items-baseline justify-between gap-1 px-0.5 py-1 text-sm font-medium ${
+                      isToday ? 'text-primary' : 'text-muted'
+                    }`}
+                  >
+                    {DAY_NAMES[index]}
+                    <span className={`font-display text-[26px] font-extrabold ${isToday ? '' : 'text-ink'}`}>
+                      {day.getDate()}
+                    </span>
+                  </h2>
+                  {getAllMealsForDay(day).map((meal) => (
+                    <button
+                      key={meal.id}
+                      type="button"
+                      onClick={() => openEditMeal(meal)}
+                      className="flex flex-col items-start gap-1 rounded-xl bg-surface p-2.5 text-left transition-colors hover:bg-line/40"
+                    >
+                      <span className={`rounded-lg px-1.5 py-0.5 text-xs font-semibold text-on-primary ${mealColor(meal)}`}>
+                        {getMealTypeName(meal)}
+                      </span>
+                      <span className="w-full break-words text-[15px] font-semibold leading-tight">{meal.name}</span>
+                      <span className="w-full truncate text-[13px] text-muted">{getResponsibleName(meal)}</span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => openAddMeal(day)}
+                    aria-label={`Añadir comida el ${DAY_NAMES_FULL[day.getDay()]} ${day.getDate()}`}
+                    className="mt-auto min-h-11 rounded-xl border border-dashed border-line text-sm font-semibold transition-colors hover:bg-surface"
+                  >
+                    Añadir
+                  </button>
+                </section>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Mobile: dots per day, selected day below */}
+          <section aria-label={getMonthLabel()} className="grid grid-cols-7 gap-0.5 lg:hidden">
+            {DAY_LETTERS.map((letter) => (
+              <span key={letter} className="py-1 text-center text-xs font-medium text-muted">{letter}</span>
+            ))}
+            {getMonthDays(currentDate).map((day, index) => {
+              if (!day) return <span key={`empty-${index}`}></span>;
+              const dayMeals = getAllMealsForDay(day);
+              const selected = isSameDay(day, currentDate);
+              const isToday = isSameDay(day, today);
+              return (
+                <button
+                  key={day.toISOString()}
+                  type="button"
+                  onClick={() => setCurrentDate(day)}
+                  aria-pressed={selected}
+                  aria-label={`${day.getDate()} de ${MONTH_NAMES[day.getMonth()]}, ${dayMeals.length} ${dayMeals.length === 1 ? 'comida' : 'comidas'}`}
+                  className={`flex h-[50px] flex-col items-center justify-center gap-1 rounded-xl text-[15px] font-semibold ${
+                    selected ? 'bg-ink text-ground' : isToday ? 'text-primary' : ''
+                  }`}
+                >
+                  {day.getDate()}
+                  <span aria-hidden="true" className="flex h-1.5 gap-[3px]">
+                    {dayMeals.slice(0, 4).map((meal) => (
+                      <span key={meal.id} className={`h-1.5 w-1.5 rounded-full ${mealColor(meal)}`}></span>
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </section>
+
+          <div className="flex flex-col gap-1.5 lg:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-xl font-extrabold">{selectedDayTitle}</h2>
+              <button type="button" onClick={() => openAddMeal(currentDate)} className={primaryButtonClass}>
+                Añadir comida
+              </button>
+            </div>
+            {selectedDayMeals.map((meal) => (
+              <button
+                key={meal.id}
+                type="button"
+                onClick={() => openEditMeal(meal)}
+                className="flex min-h-11 items-center gap-2.5 rounded-xl bg-surface px-3 py-2 text-left"
+              >
+                <span className={`flex-none rounded-lg px-1.5 py-0.5 text-xs font-semibold text-on-primary ${mealColor(meal)}`}>
+                  {getMealTypeName(meal)}
+                </span>
+                <span className="min-w-0 truncate text-[15px] font-medium">{meal.name}</span>
+              </button>
+            ))}
+            {selectedDayMeals.length === 0 && !loadError && (
+              <p className="py-4 text-center text-muted">Sin comidas este día</p>
+            )}
+          </div>
+
+          {/* Desktop: full month grid */}
+          <div className="hidden grid-cols-7 gap-1 lg:grid">
+            {DAY_NAMES.map((name) => (
+              <span key={name} className="px-2 py-0.5 text-sm font-medium text-muted">{name}</span>
+            ))}
+            {getMonthDays(currentDate).map((day, index) => {
+              if (!day) return <span key={`empty-${index}`}></span>;
+              const dayMeals = getAllMealsForDay(day);
+              const dateKey = formatDateKey(day);
+              const isExpanded = expandedDays.has(dateKey);
+              const visibleMeals = isExpanded ? dayMeals : dayMeals.slice(0, 3);
+              const isToday = isSameDay(day, today);
               return (
                 <div
                   key={day.toISOString()}
-                  className={`bg-white rounded-2xl shadow-lg shadow-amber-100/50 border flex flex-col transition-all duration-200 min-w-0 md:min-h-[420px] ${
-                    isToday
-                      ? 'border-amber-400 ring-2 ring-amber-400/50'
-                      : 'border-amber-100'
+                  className={`flex min-h-[116px] min-w-0 flex-col gap-1 rounded-xl p-1.5 ${
+                    isToday ? 'border-2 border-primary' : 'border border-line'
                   }`}
                 >
-                  {/* Day Header - Double click to add meal */}
-                  <div
-                    onDoubleClick={() => openAddMeal(day)}
-                    className={`text-center py-3 px-2 border-b cursor-pointer flex-shrink-0 ${isToday ? 'bg-amber-50 rounded-t-2xl' : ''} hover:bg-amber-100/50 transition-colors`}
-                    title="Doble clic para agregar comida"
+                  <button
+                    type="button"
+                    onClick={() => openAddMeal(day)}
+                    aria-label={`Añadir comida el ${day.getDate()} de ${MONTH_NAMES[day.getMonth()]}`}
+                    title="Añadir comida"
+                    className={`rounded px-0.5 text-left text-[15px] font-semibold hover:bg-surface ${isToday ? 'text-primary' : ''}`}
                   >
-                    <p className={`text-xs lg:text-sm font-medium truncate ${isToday ? 'text-amber-600' : 'text-stone-500'}`}>
-                      <span className="md:hidden xl:inline">{DAY_NAMES_FULL[day.getDay()]}</span>
-                      <span className="hidden md:inline xl:hidden">{DAY_NAMES[day.getDay()]}</span>
-                    </p>
-                    <p className={`text-2xl lg:text-3xl font-bold mt-1 ${isToday ? 'text-amber-700' : 'text-stone-700'}`}>
-                      {day.getDate()}
-                    </p>
-                  </div>
-
-                  {/* Meals Container - Simple list, height driven by content */}
-                  <div className="p-2 sm:p-3 space-y-2 overflow-y-auto max-h-[400px]">
-                    {getAllMealsForDay(day).map((meal) => {
-                      const profile = profiles.find((p) => p.id === meal.responsible_id);
-                      return (
-                        <div
-                          key={meal.id}
-                          onClick={() => openEditMeal(meal)}
-                          className="group relative p-2 sm:p-3 pr-9 rounded-xl bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition-all duration-200 hover:shadow-md"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg sm:text-xl">{MEAL_TYPE_ICONS[meal.meal_type_id]}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm sm:text-base font-semibold text-amber-800 truncate">
-                                {meal.name}
-                              </p>
-                              {profile && (
-                                <p className="text-xs text-stone-500 truncate">
-                                  👨‍🍳 {profile.full_name}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDelete(meal.id, meal.name);
-                            }}
-                            aria-label={`Eliminar ${meal.name}`}
-                            className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm font-bold transition-opacity hover:bg-red-200 flex items-center justify-center"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                    
-                    {getAllMealsForDay(day).length === 0 && (
-                      <p className="text-center text-xs sm:text-sm text-stone-400 py-2">
-                        Sin comidas
-                      </p>
-                    )}
-
-                    {/* Add Meal Button */}
+                    {day.getDate()}
+                  </button>
+                  {visibleMeals.map((meal) => (
+                    <button
+                      key={meal.id}
+                      type="button"
+                      onClick={() => openEditMeal(meal)}
+                      className={`rounded-md px-1.5 py-0.5 text-left text-xs font-semibold text-on-primary ${mealColor(meal)} ${
+                        isExpanded ? 'whitespace-normal break-words leading-snug' : 'truncate'
+                      }`}
+                    >
+                      {meal.name}
+                    </button>
+                  ))}
+                  {dayMeals.length > 3 && (
                     <button
                       type="button"
-                      onClick={() => openAddMeal(day)}
-                      className="w-full py-2 rounded-xl border-2 border-dashed border-stone-300 text-stone-500 text-sm font-medium hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-all duration-200 flex items-center justify-center gap-2"
+                      onClick={() => toggleDayExpand(dateKey)}
+                      aria-expanded={isExpanded}
+                      className="p-0.5 text-left text-xs font-semibold"
                     >
-                      <span className="text-lg">+</span>
-                      <span className="hidden sm:inline">Agregar</span>
+                      {isExpanded ? '− menos' : `+${dayMeals.length - 3} más`}
                     </button>
-                  </div>
+                  )}
                 </div>
               );
             })}
           </div>
-        ) : (
-          /* Month View */
-          <div className="bg-white rounded-2xl shadow-lg shadow-amber-100/50 border border-amber-100 overflow-hidden max-w-[1800px] mx-auto">
-            {/* Day Headers */}
-            <div className="grid grid-cols-7 border-b border-amber-100">
-              {MONDAY_FIRST_DAY_NAMES.map((name) => (
-                <div key={name} className="text-center py-3 bg-stone-50">
-                  <p className="text-sm font-semibold text-stone-600">{name}</p>
-                </div>
-              ))}
-            </div>
+        </>
+      )}
 
-            {/* Calendar Grid - Content-driven height */}
-            <div className="grid grid-cols-7">
-              {getMonthDays(currentDate).map((day, index) => {
-                if (!day) {
-                  return <div key={`empty-${index}`} className="bg-stone-50/50"></div>;
-                }
-
-                const isToday = isSameDay(day, new Date());
-                const dayMeals = getAllMealsForDay(day);
-                const dateKey = formatDateKey(day);
-                const isExpanded = expandedDays.has(dateKey);
-                const visibleMeals = isExpanded ? dayMeals : dayMeals.slice(0, 3);
-
-                return (
-                  <div
-                    key={day.toISOString()}
-                    onClick={() => openAddMeal(day)}
-                    className={`min-h-[100px] p-2 border-b border-r border-amber-100 cursor-pointer transition-colors hover:bg-amber-50/50 ${
-                      isToday ? 'bg-amber-50/30' : ''
-                    }`}
-                    title="Clic para agregar comida"
-                  >
-                    <div className="flex items-start justify-between">
-                      <span
-                        className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-semibold ${
-                          isToday
-                            ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg'
-                            : 'text-stone-600 hover:bg-stone-100'
-                        }`}
-                      >
-                        {day.getDate()}
-                      </span>
-                    </div>
-
-                    <div className="mt-1 space-y-1">
-                      {visibleMeals.map((meal) => {
-                        const colors = MEAL_TYPE_COLORS[meal.meal_type_id] || MEAL_TYPE_COLORS[1];
-                        return (
-                          <div
-                            key={meal.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditMeal(meal);
-                            }}
-                            className={`text-xs p-1.5 rounded-lg ${colors.bg} ${colors.border} border ${colors.hover} ${
-                              isExpanded ? 'whitespace-normal break-words leading-snug' : 'truncate'
-                            }`}
-                          >
-                            <span className="mr-1">{MEAL_TYPE_ICONS[meal.meal_type_id]}</span>
-                            <span className={`font-medium ${colors.text}`}>{meal.name}</span>
-                          </div>
-                        );
-                      })}
-
-                      {dayMeals.length > 3 && (
-                        <button
-                          type="button"
-                          onClick={(e) => toggleDayExpand(e, dateKey)}
-                          className="w-full text-left text-xs font-semibold text-amber-700 pl-1 py-1 rounded-lg hover:bg-amber-100 active:bg-amber-200 transition-colors"
-                          aria-expanded={isExpanded}
-                        >
-                          {isExpanded ? '− menos' : `+${dayMeals.length - 3} más`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Add/Edit Meal Modal */}
       {showMealForm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-          onClick={() => setShowMealForm(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg bg-white rounded-3xl shadow-2xl shadow-amber-500/20 overflow-hidden animate-in fade-in zoom-in-95 duration-300"
-          >
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{mealToEdit ? '✏️' : '🍽️'}</span>
-                  <h2 className="text-2xl font-bold">
-                    {mealToEdit ? 'Editar Comida' : 'Nueva Comida'}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowMealForm(false)}
-                  className="w-10 h-10 rounded-full bg-white/20 text-white text-2xl hover:bg-white/30 transition-colors flex items-center justify-center"
-                >
-                  ×
-                </button>
-              </div>
+        <FormDialog title={mealToEdit ? 'Editar comida' : 'Nueva comida'} onClose={closeMealForm}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+            <div>
+              <label htmlFor="meal-name" className={labelClass}>Nombre</label>
+              <input
+                id="meal-name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                className={fieldClass}
+              />
             </div>
 
-            {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-              {/* Meal Name */}
+            <fieldset>
+              <legend className={labelClass}>Tipo</legend>
+              <div className="flex flex-wrap gap-1.5">
+                {mealTypes.map((type) => {
+                  const selected = formData.meal_type_id === type.id;
+                  return (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, meal_type_id: type.id })}
+                      aria-pressed={selected}
+                      className={`min-h-11 rounded-xl border px-3 text-sm font-semibold ${
+                        selected
+                          ? `border-transparent text-on-primary ${MEAL_TYPE_COLORS[type.id] || MEAL_TYPE_COLORS[1]}`
+                          : 'border-line'
+                      }`}
+                    >
+                      {type.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">
-                  Nombre de la comida
-                </label>
+                <label htmlFor="meal-date" className={labelClass}>Fecha</label>
                 <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  id="meal-date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   required
-                  className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 text-lg focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100 transition-all"
-                  placeholder="Ej: Pasta con salsa boloñesa"
+                  className={fieldClass}
                 />
               </div>
-
-              {/* Meal Type & Date Row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-stone-700 mb-2">
-                    Tipo
-                  </label>
-                  <select
-                    value={formData.meal_type_id}
-                    onChange={(e) => setFormData({ ...formData, meal_type_id: parseInt(e.target.value) })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100 transition-all"
-                  >
-                    {mealTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {MEAL_TYPE_ICONS[type.id]} {type.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-stone-700 mb-2">
-                    Fecha
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Responsible */}
               <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">
-                  Responsable
-                </label>
+                <label htmlFor="meal-responsible" className={labelClass}>Responsable</label>
                 <select
+                  id="meal-responsible"
                   value={formData.responsible_id}
                   onChange={(e) => setFormData({ ...formData, responsible_id: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100 transition-all"
+                  className={fieldClass}
                 >
                   <option value="">Sin asignar</option>
                   {profiles.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      👨‍🍳 {profile.full_name}
-                    </option>
+                    <option key={profile.id} value={profile.id}>{profile.full_name}</option>
                   ))}
                 </select>
               </div>
+            </div>
 
-              {/* Ingredients */}
-              <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">
-                  Ingredientes
-                  <span className="text-stone-400 font-normal ml-1">(separados por coma)</span>
-                </label>
-                <textarea
-                  value={formData.ingredients}
-                  onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
-                  rows={2}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100 transition-all resize-none"
-                  placeholder="500g de pasta, 200g de carne molida, 100g de queso..."
-                />
-              </div>
+            <div>
+              <label htmlFor="meal-ingredients" className={labelClass}>Ingredientes, separados por comas</label>
+              <textarea
+                id="meal-ingredients"
+                rows={2}
+                value={formData.ingredients}
+                onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
+                className={textareaClass}
+              />
+            </div>
 
-              {/* Preparation */}
-              <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">
-                  Preparación
-                  <span className="text-stone-400 font-normal ml-1">(opcional)</span>
-                </label>
-                <textarea
-                  value={formData.preparation}
-                  onChange={(e) => setFormData({ ...formData, preparation: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100 transition-all resize-none"
-                  placeholder={'1. Hervir la pasta...\n2. Preparar la salsa...'}
-                />
-              </div>
+            <div>
+              <label htmlFor="meal-preparation" className={labelClass}>Preparación (opcional)</label>
+              <textarea
+                id="meal-preparation"
+                rows={3}
+                value={formData.preparation}
+                onChange={(e) => setFormData({ ...formData, preparation: e.target.value })}
+                placeholder="Pasos de la receta"
+                className={textareaClass}
+              />
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-2">
+            <div className="flex flex-col gap-1.5 pt-1">
+              <button type="submit" className={`min-h-[52px] ${primaryButtonClass}`}>
+                {mealToEdit ? 'Guardar cambios' : 'Añadir comida'}
+              </button>
+              {mealToEdit && (
                 <button
                   type="button"
-                  onClick={() => setShowMealForm(false)}
-                  className="flex-1 px-6 py-3 rounded-xl border-2 border-stone-200 text-stone-600 font-semibold hover:bg-stone-100 transition-colors"
+                  onClick={() => setDeleteConfirm({ show: true, id: mealToEdit.id, name: mealToEdit.name })}
+                  className="min-h-11 text-[15px] font-semibold text-danger"
                 >
-                  Cancelar
+                  Eliminar comida
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-lg shadow-amber-500/30 hover:from-amber-600 hover:to-orange-600 transition-all duration-200 hover:scale-[1.02]"
-                >
-                  {mealToEdit ? 'Guardar Cambios' : 'Agregar Comida'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+              )}
+            </div>
+          </form>
+        </FormDialog>
       )}
 
-      {/* Custom Delete Confirmation Modal */}
       {deleteConfirm.show && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl transform animate-[fadeIn_0.2s_ease-out]">
-            <div className="text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <span className="text-3xl">🗑️</span>
-              </div>
-              <h3 className="text-xl font-bold text-stone-800 mb-2">¿Eliminar comida?</h3>
-              <p className="text-stone-600 mb-6">
-                <span className="font-semibold text-amber-600">&quot;{deleteConfirm.name}&quot;</span> se eliminará permanentemente.
-              </p>
-              {deleteError && (
-                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-left">
-                  <p className="text-sm font-semibold text-red-700">Error:</p>
-                  <p className="text-xs text-red-600 break-words">{deleteError}</p>
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => { setDeleteConfirm({ show: false, id: null, name: '' }); setDeleteError(null); }}
-                  className="flex-1 px-4 py-3 rounded-xl border-2 border-stone-200 text-stone-600 font-semibold hover:bg-stone-100 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); confirmDelete(); }}
-                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold shadow-lg hover:from-red-600 hover:to-red-700 transition-all"
-                >
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="¿Eliminar comida?"
+          confirmLabel="Eliminar"
+          danger
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => { setDeleteConfirm({ show: false, id: null, name: '' }); setDeleteError(null); }}
+        >
+          <span className="font-semibold text-ink">{deleteConfirm.name}</span> se eliminará permanentemente.
+        </ConfirmDialog>
       )}
     </div>
   );
