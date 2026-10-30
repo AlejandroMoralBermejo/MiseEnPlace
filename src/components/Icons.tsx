@@ -16,7 +16,18 @@ function Icon({ path, size = 20 }: { path: string; size?: number }) {
   );
 }
 
-export const ChevronLeftIcon = () => <Icon path="M15 19l-7-7 7-7" />;
+export function Logo({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" className="flex-none">
+      <rect x="8" y="8" width="38" height="38" rx="8" fill="var(--line)" />
+      <rect x="54" y="8" width="38" height="38" rx="8" fill="var(--line)" />
+      <rect x="8" y="54" width="38" height="38" rx="8" fill="var(--line)" />
+      <rect x="54" y="54" width="38" height="38" rx="8" fill="var(--primary)" />
+    </svg>
+  );
+}
+
+export const ChevronLeftIcon =() => <Icon path="M15 19l-7-7 7-7" />;
 export const ChevronRightIcon = () => <Icon path="M9 5l7 7-7 7" />;
 export const CloseIcon = () => <Icon path="M6 6l12 12M18 6L6 18" size={22} />;
 export const TrashIcon = () => <Icon path="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />;

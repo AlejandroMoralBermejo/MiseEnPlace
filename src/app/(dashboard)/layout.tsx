@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isAuthRetryableFetchError, type User } from '@supabase/supabase-js';
 import { LoadingScreen, primaryButtonClass } from '@/components/Dialog';
-import { BoxIcon, CalendarIcon, CartIcon } from '@/components/Icons';
+import { BoxIcon, CalendarIcon, CartIcon, Logo } from '@/components/Icons';
 
 const navItems = [
   { href: '/calendar', label: 'Calendario', icon: <CalendarIcon /> },
@@ -72,7 +72,10 @@ export default function DashboardLayout({
     <div className="flex min-h-screen">
       {/* Sidebar - Desktop */}
       <aside className="hidden w-56 flex-none flex-col gap-7 bg-surface px-4 py-7 lg:flex">
-        <p className="px-3 font-display text-2xl font-extrabold tracking-tight">MiseEnPlace</p>
+        <p className="flex items-center gap-2 px-3 font-display text-xl font-extrabold tracking-tight">
+          <Logo size={26} />
+          MiseEnPlace
+        </p>
         <nav aria-label="Principal" className="flex flex-col gap-1">
           {navItems.map((item) => {
             const active = pathname === item.href;

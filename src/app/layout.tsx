@@ -15,6 +15,12 @@ const bricolage = Bricolage_Grotesque({
 export const metadata: Metadata = {
   title: "MiseEnPlace - Planificador de comidas familiares",
   description: "Organiza las comidas de tu familia, gestiona el inventario y crea listas de compras.",
+  applicationName: "MiseEnPlace",
+  appleWebApp: {
+    capable: true,
+    title: "MiseEnPlace",
+    statusBarStyle: "black",
+  },
 };
 
 export const viewport: Viewport = {

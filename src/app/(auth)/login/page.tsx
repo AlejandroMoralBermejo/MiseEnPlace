@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { fieldClass, labelClass, primaryButtonClass } from '@/components/Dialog';
+import { Logo } from '@/components/Icons';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -54,7 +55,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <main className="flex w-full max-w-[380px] flex-col gap-7">
-        <h1 className="font-display text-[44px] font-extrabold leading-none tracking-tight">MiseEnPlace</h1>
+        <div className="flex flex-col gap-4">
+          <Logo size={56} />
+          <h1 className="font-display text-[44px] font-extrabold leading-none tracking-tight">MiseEnPlace</h1>
+        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (
