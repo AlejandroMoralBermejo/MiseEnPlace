@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Paleta Petróleo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2F2E8}a:hover{color:#F2B632}
+</style>
+</helmet>
+<div style="width: 720px; height: 860px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 24px; background: {{ground}}; color: {{text}}; font-family: 'Instrument Sans', system-ui, sans-serif">
+  <h1 style="margin: 0; font-size: 30px; font-weight: 700">Petróleo</h1>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 20px; background: {{surface}}; border: 1px solid {{line}}">
+    <p style="margin: 0; font-size: 14px; font-weight: 600; color: {{accent}}">Comida · Ana</p>
+    <p style="margin: 0; font-size: 26px; font-weight: 600; color: {{text}}">Lentejas estofadas</p>
+    <p style="margin: 0; font-size: 15px; color: {{muted}}">lentejas, chorizo, zanahoria, patata</p>
+    <button type="button" style="min-height: 48px; border: 0; background: {{primary}}; color: {{onPrimary}}; font: 600 16px 'Instrument Sans', sans-serif">Añadir comida</button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+    <sc-for list="{{roles}}" as="r" hint-placeholder-count="10">
+      <div style="min-height: 58px; box-sizing: border-box; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; gap: 2px; background: {{r.hex}}; color: {{r.ink}}; border: 1px solid {{line}}">
+        <span style="font-size: 14px; font-weight: 600">{{r.label}}</span>
+        <span style="font-size: 13px">{{r.hex}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <h2 style="margin: 0; font-size: 15px; font-weight: 600">Tipos de comida</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <sc-for list="{{meals}}" as="m" hint-placeholder-count="5">
+        <span style="padding: 8px 12px; font-size: 14px; font-weight: 600; background: {{m.hex}}; color: {{mealText}}">{{m.label}} {{m.hex}}</span>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const luminance = (hex) => {
+      const channel = (i) => {
+        const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+    };
+    const c = {
+      ground: '#0F3440', surface: '#17444F', text: '#F2F2E8', muted: '#C4D6D8', line: '#62919B',
+      primary: '#F2B632', onPrimary: '#0F3440', accent: '#F7C873', error: '#FFB3A8', success: '#A5E2C0',
+    };
+    const mealHexes = ['#F2B632', '#F2AE93', '#A5D0E6', '#BFE3B4', '#E2BBD6'];
+    return {
+      ...c,
+      mealText: '#0F3440',
+      roles: [
+        ['Fondo', c.ground], ['Superficie', c.surface], ['Texto', c.text], ['Texto secundario', c.muted],
+        ['Línea', c.line], ['Principal', c.primary], ['Sobre principal', c.onPrimary], ['Acento', c.accent],
+        ['Error', c.error], ['Éxito', c.success],
+      ].map(([label, hex]) => ({ label, hex, ink: luminance(hex) > 0.18 ? '#111111' : '#FFFFFF' })),
+      meals: ['Desayuno', 'Comida', 'Cena', 'Merienda', 'Snack'].map((label, i) => ({ label, hex: mealHexes[i] })),
+    };
+  }
+}
+</script>
+</body>
+</html>

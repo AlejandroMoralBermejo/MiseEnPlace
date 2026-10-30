@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Calendario en móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&amp;family=Figtree:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2F2E8}a:hover{color:#F2B632}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #0F3440; color: #F2F2E8; font-family: Figtree, system-ui, sans-serif">
+  <header style="padding: 20px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+      <h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 40px; line-height: 1; font-weight: 800; letter-spacing: -0.02em">Viernes 30</h1>
+      <button type="button" style="min-height: 44px; padding: 0 16px; border: 1px solid #62919B; border-radius: 22px; background: transparent; color: #F2F2E8; font: 600 15px Figtree, sans-serif">Hoy</button>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+      <div style="display: flex; align-items: center; gap: 2px">
+        <button type="button" aria-label="Semana anterior" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #F2F2E8">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+        <p style="margin: 0; font-size: 15px; font-weight: 500; color: #C4D6D8">26 oct – 1 nov</p>
+        <button type="button" aria-label="Semana siguiente" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #F2F2E8">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+        </button>
+      </div>
+      <div style="display: flex; padding: 2px; border-radius: 22px; background: #17444F">
+        <button type="button" aria-pressed="true" style="min-height: 40px; padding: 0 12px; border: 0; border-radius: 20px; background: #F2F2E8; color: #0F3440; font: 600 14px Figtree, sans-serif">Semana</button>
+        <button type="button" aria-pressed="false" style="min-height: 40px; padding: 0 12px; border: 0; border-radius: 20px; background: transparent; color: #F2F2E8; font: 500 14px Figtree, sans-serif">Mes</button>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px">
+      <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+        <button type="button" aria-label="{{d.label}}" aria-pressed="{{d.selected}}" style="height: 56px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; border-radius: 14px; background: {{d.bg}}; color: {{d.fg}}; font-family: Figtree, sans-serif">
+          <span style="font-size: 12px; font-weight: 500">{{d.letter}}</span>
+          <span style="font-size: 17px; font-weight: 600">{{d.number}}</span>
+        </button>
+      </sc-for>
+    </div>
+  </header>
+
+  <main style="flex: 1; min-height: 0; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 8px">
+    <sc-for list="{{meals}}" as="m" hint-placeholder-count="4">
+      <article style="display: flex; align-items: flex-start; gap: 4px; padding: 12px 4px 12px 14px; border-radius: 16px; background: #17444F">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px">
+          <span style="padding: 3px 9px; border-radius: 10px; background: {{m.color}}; color: #0F3440; font-size: 12px; font-weight: 600">{{m.type}}</span>
+          <h2 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 20px; line-height: 1.15; font-weight: 500">{{m.name}}</h2>
+          <p style="margin: 0; font-size: 14px; color: #C4D6D8">{{m.person}}</p>
+        </div>
+        <button type="button" aria-label="{{m.deleteLabel}}" style="flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #FFB3A8">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>
+        </button>
+      </article>
+    </sc-for>
+    <button type="button" style="margin-top: auto; min-height: 52px; border: 0; border-radius: 26px; background: #F2B632; color: #0F3440; font: 600 16px Figtree, sans-serif">Añadir comida</button>
+  </main>
+
+  <nav aria-label="Principal" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #62919B">
+    <a href="#calendario" aria-current="page" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2B632; font-size: 13px; font-weight: 600; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path></svg>
+      Calendario
+    </a>
+    <a href="#inventario" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2F2E8; font-size: 13px; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8"></path></svg>
+      Inventario
+    </a>
+    <a href="#compras" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2F2E8; font-size: 13px; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.5 12h10L20 8H6.5M9 20h.01M16 20h.01"></path></svg>
+      Compras
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const week = [
+      ['L', 26, 'Lunes'], ['M', 27, 'Martes'], ['X', 28, 'Miércoles'], ['J', 29, 'Jueves'],
+      ['V', 30, 'Viernes'], ['S', 31, 'Sábado'], ['D', 1, 'Domingo'],
+    ];
+    const meals = [
+      ['Desayuno', '#F2B632', 'Tostadas con tomate', 'Luis'],
+      ['Comida', '#F2AE93', 'Lentejas estofadas', 'Ana'],
+      ['Merienda', '#BFE3B4', 'Fruta de temporada', 'Sin asignar'],
+      ['Cena', '#A5D0E6', 'Tortilla de patatas', 'Marta'],
+    ];
+    return {
+      days: week.map(([letter, number, name]) => {
+        const selected = number === 30;
+        return {
+          letter, number, selected,
+          label: name + ' ' + number,
+          bg: selected ? '#F2B632' : 'transparent',
+          fg: selected ? '#0F3440' : '#F2F2E8',
+        };
+      }),
+      meals: meals.map(([type, color, name, person]) => ({
+        type, color, name, person, deleteLabel: 'Eliminar ' + name,
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

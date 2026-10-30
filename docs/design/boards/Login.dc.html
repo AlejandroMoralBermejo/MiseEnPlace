@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Iniciar sesión</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&amp;family=Figtree:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2F2E8}a:hover{color:#F2B632}
+</style>
+</helmet>
+<div style="min-height: 100vh; box-sizing: border-box; padding: 32px 16px; display: flex; align-items: center; justify-content: center; background: #0F3440; color: #F2F2E8; font-family: Figtree, system-ui, sans-serif">
+  <main style="width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 28px">
+    <h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 44px; line-height: 1; font-weight: 800; letter-spacing: -0.02em">MiseEnPlace</h1>
+
+    <form style="display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="email" style="font-size: 14px; font-weight: 600">Correo</label>
+        <input id="email" type="email" autocomplete="email" style="min-height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #62919B; border-radius: 12px; background: #17444F; color: #F2F2E8; font: 500 16px Figtree, sans-serif">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="password" style="font-size: 14px; font-weight: 600">Contraseña</label>
+        <input id="password" type="password" autocomplete="current-password" style="min-height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #62919B; border-radius: 12px; background: #17444F; color: #F2F2E8; font: 500 16px Figtree, sans-serif">
+      </div>
+      <label style="min-height: 44px; display: flex; align-items: center; gap: 10px; font-size: 15px">
+        <input type="checkbox" defaultChecked="{{ true }}" style="width: 24px; height: 24px; margin: 0; accent-color: #F2B632">
+        Recordar usuario
+      </label>
+      <button type="submit" style="min-height: 52px; border: 0; border-radius: 26px; background: #F2B632; color: #0F3440; font: 600 16px Figtree, sans-serif">Entrar</button>
+    </form>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

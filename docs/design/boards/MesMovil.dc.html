@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mes en móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&amp;family=Figtree:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2F2E8}a:hover{color:#F2B632}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #0F3440; color: #F2F2E8; font-family: Figtree, system-ui, sans-serif">
+  <header style="padding: 20px 16px 8px; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+      <h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 40px; line-height: 1; font-weight: 800; letter-spacing: -0.02em">Octubre</h1>
+      <button type="button" style="min-height: 44px; padding: 0 16px; border: 1px solid #62919B; border-radius: 22px; background: transparent; color: #F2F2E8; font: 600 15px Figtree, sans-serif">Hoy</button>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+      <div style="display: flex; align-items: center; gap: 2px">
+        <button type="button" aria-label="Mes anterior" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #F2F2E8">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+        <p style="margin: 0; font-size: 15px; font-weight: 500; color: #C4D6D8">2026</p>
+        <button type="button" aria-label="Mes siguiente" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #F2F2E8">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+        </button>
+      </div>
+      <div style="display: flex; padding: 2px; border-radius: 22px; background: #17444F">
+        <button type="button" aria-pressed="false" style="min-height: 40px; padding: 0 12px; border: 0; border-radius: 20px; background: transparent; color: #F2F2E8; font: 500 14px Figtree, sans-serif">Semana</button>
+        <button type="button" aria-pressed="true" style="min-height: 40px; padding: 0 12px; border: 0; border-radius: 20px; background: #F2F2E8; color: #0F3440; font: 600 14px Figtree, sans-serif">Mes</button>
+      </div>
+    </div>
+  </header>
+
+  <section aria-label="Octubre de 2026" style="padding: 0 12px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px">
+    <sc-for list="{{weekdays}}" as="w" hint-placeholder-count="7">
+      <span style="padding: 4px 0; text-align: center; font-size: 12px; font-weight: 500; color: #C4D6D8">{{w}}</span>
+    </sc-for>
+    <sc-for list="{{cells}}" as="c" hint-placeholder-count="34">
+      <sc-if value="{{c.empty}}" hint-placeholder-val="{{ false }}">
+        <span></span>
+      </sc-if>
+      <sc-if value="{{c.filled}}" hint-placeholder-val="{{ true }}">
+        <button type="button" aria-label="{{c.label}}" aria-pressed="{{c.selected}}" style="height: 50px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; border-radius: 12px; background: {{c.bg}}; color: {{c.fg}}; font: 600 15px Figtree, sans-serif">
+          {{c.number}}
+          <span aria-hidden="true" style="height: 6px; display: flex; gap: 3px">
+            <sc-for list="{{c.dots}}" as="dot" hint-placeholder-count="2">
+              <span style="width: 6px; height: 6px; border-radius: 3px; background: {{dot}}"></span>
+            </sc-for>
+          </span>
+        </button>
+      </sc-if>
+    </sc-for>
+  </section>
+
+  <main style="flex: 1; min-height: 0; padding: 10px 16px 8px; display: flex; flex-direction: column; gap: 6px">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+      <h2 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 20px; font-weight: 800">Viernes 30</h2>
+      <button type="button" style="min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: #F2B632; color: #0F3440; font: 600 15px Figtree, sans-serif">Añadir comida</button>
+    </div>
+    <sc-for list="{{meals}}" as="m" hint-placeholder-count="4">
+      <a href="#editar" style="min-height: 44px; padding: 7px 12px; display: flex; align-items: center; gap: 10px; border-radius: 12px; background: #17444F; color: #F2F2E8; text-decoration: none">
+        <span style="flex: none; padding: 2px 7px; border-radius: 8px; background: {{m.color}}; color: #0F3440; font-size: 12px; font-weight: 600">{{m.type}}</span>
+        <span style="min-width: 0; font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{m.name}}</span>
+      </a>
+    </sc-for>
+  </main>
+
+  <nav aria-label="Principal" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #62919B">
+    <a href="#calendario" aria-current="page" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2B632; font-size: 13px; font-weight: 600; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path></svg>
+      Calendario
+    </a>
+    <a href="#inventario" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2F2E8; font-size: 13px; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8"></path></svg>
+      Inventario
+    </a>
+    <a href="#compras" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2F2E8; font-size: 13px; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.5 12h10L20 8H6.5M9 20h.01M16 20h.01"></path></svg>
+      Compras
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const colors = { Desayuno: '#F2B632', Comida: '#F2AE93', Cena: '#A5D0E6', Merienda: '#BFE3B4', Snack: '#E2BBD6' };
+    const planned = {
+      5: ['Comida'], 8: ['Comida', 'Cena'], 12: ['Cena'], 15: ['Comida', 'Cena'], 19: ['Comida'], 22: ['Desayuno', 'Comida'],
+      26: ['Comida', 'Cena'], 27: ['Comida'], 28: ['Comida', 'Cena'], 29: ['Cena'],
+      30: ['Desayuno', 'Comida', 'Merienda', 'Cena'], 31: ['Comida'],
+    };
+    const blanks = Array.from({ length: 3 }, () => ({ empty: true, filled: false }));
+    const days = Array.from({ length: 31 }, (_, i) => {
+      const number = i + 1;
+      const types = planned[number] || [];
+      const selected = number === 30;
+      return {
+        empty: false, filled: true, number, selected,
+        label: number + ' de octubre, ' + types.length + (types.length === 1 ? ' comida' : ' comidas'),
+        bg: selected ? '#F2F2E8' : 'transparent',
+        fg: selected ? '#0F3440' : '#F2F2E8',
+        dots: types.map((t) => colors[t]),
+      };
+    });
+    return {
+      weekdays: ['L', 'M', 'X', 'J', 'V', 'S', 'D'],
+      cells: blanks.concat(days),
+      meals: [
+        ['Desayuno', 'Tostadas con tomate'], ['Comida', 'Lentejas estofadas'],
+        ['Merienda', 'Fruta de temporada'], ['Cena', 'Tortilla de patatas'],
+      ].map(([type, name]) => ({ type, name, color: colors[type] })),
+    };
+  }
+}
+</script>
+</body>
+</html>

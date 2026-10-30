@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Formulario de comida</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&amp;family=Figtree:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2F2E8}a:hover{color:#F2B632}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 14px; background: #0F3440; color: #F2F2E8; font-family: Figtree, system-ui, sans-serif">
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+    <h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 30px; line-height: 1; font-weight: 800; letter-spacing: -0.01em">Editar comida</h1>
+    <button type="button" aria-label="Cerrar" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #F2F2E8">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </button>
+  </header>
+
+  <form style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="nombre" style="font-size: 14px; font-weight: 600">Nombre</label>
+      <input id="nombre" type="text" defaultValue="Lentejas estofadas" style="min-height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #62919B; border-radius: 12px; background: #17444F; color: #F2F2E8; font: 500 16px Figtree, sans-serif">
+    </div>
+
+    <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px">
+      <legend style="padding: 0 0 6px; font-size: 14px; font-weight: 600">Tipo</legend>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px">
+        <sc-for list="{{types}}" as="t" hint-placeholder-count="5">
+          <button type="button" aria-pressed="{{t.selected}}" style="min-height: 44px; padding: 0 12px; border: {{t.border}}; border-radius: 12px; background: {{t.bg}}; color: {{t.fg}}; font: 600 14px Figtree, sans-serif">{{t.name}}</button>
+        </sc-for>
+      </div>
+    </fieldset>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="fecha" style="font-size: 14px; font-weight: 600">Fecha</label>
+        <input id="fecha" type="date" defaultValue="2026-10-30" style="min-height: 48px; width: 100%; box-sizing: border-box; padding: 0 10px; border: 1px solid #62919B; border-radius: 12px; background: #17444F; color: #F2F2E8; color-scheme: dark; font: 500 15px Figtree, sans-serif">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="responsable" style="font-size: 14px; font-weight: 600">Responsable</label>
+        <select id="responsable" defaultValue="Ana" style="min-height: 48px; width: 100%; box-sizing: border-box; padding: 0 10px; border: 1px solid #62919B; border-radius: 12px; background: #17444F; color: #F2F2E8; font: 500 15px Figtree, sans-serif">
+          <option value="">Sin asignar</option>
+          <option value="Ana">Ana</option>
+          <option value="Luis">Luis</option>
+          <option value="Marta">Marta</option>
+          <option value="Pablo">Pablo</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="ingredientes" style="font-size: 14px; font-weight: 600">Ingredientes, separados por comas</label>
+      <textarea id="ingredientes" rows="2" defaultValue="lentejas, chorizo, zanahoria, patata, laurel" style="box-sizing: border-box; padding: 10px 12px; border: 1px solid #62919B; border-radius: 12px; background: #17444F; color: #F2F2E8; resize: none; font: 400 15px/1.4 Figtree, sans-serif"></textarea>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="preparacion" style="font-size: 14px; font-weight: 600">Preparación (opcional)</label>
+      <textarea id="preparacion" rows="3" placeholder="Pasos de la receta" style="box-sizing: border-box; padding: 10px 12px; border: 1px solid #62919B; border-radius: 12px; background: #17444F; color: #F2F2E8; resize: none; font: 400 15px/1.4 Figtree, sans-serif"></textarea>
+    </div>
+
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 6px">
+      <button type="submit" style="min-height: 52px; border: 0; border-radius: 26px; background: #F2B632; color: #0F3440; font: 600 16px Figtree, sans-serif">Guardar cambios</button>
+      <button type="button" style="min-height: 44px; border: 0; background: transparent; color: #FFB3A8; font: 600 15px Figtree, sans-serif">Eliminar comida</button>
+    </div>
+  </form>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const colors = { Desayuno: '#F2B632', Comida: '#F2AE93', Cena: '#A5D0E6', Merienda: '#BFE3B4', Snack: '#E2BBD6' };
+    return {
+      types: Object.keys(colors).map((name) => {
+        const selected = name === 'Comida';
+        return {
+          name, selected,
+          bg: selected ? colors[name] : 'transparent',
+          fg: selected ? '#0F3440' : '#F2F2E8',
+          border: selected ? '1px solid ' + colors[name] : '1px solid #62919B',
+        };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

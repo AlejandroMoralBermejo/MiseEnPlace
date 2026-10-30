@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Compras en escritorio</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&amp;family=Figtree:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2F2E8}a:hover{color:#F2B632}
+</style>
+</helmet>
+<div style="min-height: 860px; display: flex; flex-wrap: wrap; background: #0F3440; color: #F2F2E8; font-family: Figtree, system-ui, sans-serif">
+  <aside style="flex: 1 1 220px; box-sizing: border-box; padding: 28px 16px; display: flex; flex-direction: column; gap: 28px; background: #17444F">
+    <p style="margin: 0; padding: 0 12px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 24px; font-weight: 800; letter-spacing: -0.01em">MiseEnPlace</p>
+    <nav aria-label="Principal" style="display: flex; flex-direction: column; gap: 4px">
+      <a href="#calendario" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; gap: 12px; border-radius: 12px; color: #F2F2E8; font-size: 16px; text-decoration: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path></svg>
+        Calendario
+      </a>
+      <a href="#inventario" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; gap: 12px; border-radius: 12px; color: #F2F2E8; font-size: 16px; text-decoration: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8"></path></svg>
+        Inventario
+      </a>
+      <a href="#compras" aria-current="page" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; gap: 12px; border-radius: 12px; background: #F2B632; color: #0F3440; font-size: 16px; font-weight: 600; text-decoration: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.5 12h10L20 8H6.5M9 20h.01M16 20h.01"></path></svg>
+        Compras
+      </a>
+    </nav>
+    <div style="margin-top: auto; padding: 16px 12px 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; border-top: 1px solid #62919B">
+      <p style="margin: 0; font-size: 15px; font-weight: 500">Marta</p>
+      <button type="button" style="min-height: 44px; padding: 0; border: 0; background: transparent; color: #C4D6D8; font: 500 15px Figtree, sans-serif">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px; display: flex; flex-direction: column; gap: 24px">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+      <h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 44px; line-height: 1; font-weight: 800; letter-spacing: -0.02em">Compras</h1>
+      <button type="button" style="min-height: 48px; padding: 0 22px; border: 0; border-radius: 24px; background: #F2B632; color: #0F3440; font: 600 16px Figtree, sans-serif">Añadir</button>
+    </header>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 32px; align-items: start">
+      <section style="display: flex; flex-direction: column">
+        <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600">Por comprar (4)</h2>
+        <sc-for list="{{pending}}" as="i" hint-placeholder-count="4">
+          <div style="min-height: 62px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #62919B">
+            <label style="flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center">
+              <input type="checkbox" aria-label="{{i.checkLabel}}" style="width: 24px; height: 24px; margin: 0; accent-color: #F2B632">
+            </label>
+            <a href="#editar" style="flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; justify-content: center; gap: 1px; color: #F2F2E8; text-decoration: none">
+              <span style="font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{i.name}}</span>
+              <span style="font-size: 14px; color: #C4D6D8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{i.detail}}</span>
+            </a>
+            <button type="button" aria-label="{{i.deleteLabel}}" style="flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #FFB3A8">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>
+            </button>
+          </div>
+        </sc-for>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; flex-direction: column">
+          <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600">Comprados (2)</h2>
+          <sc-for list="{{bought}}" as="i" hint-placeholder-count="2">
+            <div style="min-height: 52px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #62919B">
+              <label style="flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center">
+                <input type="checkbox" defaultChecked="{{ true }}" aria-label="{{i.checkLabel}}" style="width: 24px; height: 24px; margin: 0; accent-color: #F2B632">
+              </label>
+              <a href="#editar" style="flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #C4D6D8; text-decoration: line-through">
+                <span style="min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{i.name}}</span>
+                <span style="flex: none; font-size: 14px">{{i.amount}}</span>
+              </a>
+              <button type="button" aria-label="{{i.deleteLabel}}" style="flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #FFB3A8">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>
+              </button>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+          <button type="button" style="min-height: 48px; padding: 0 22px; border: 0; border-radius: 24px; background: #F2B632; color: #0F3440; font: 600 16px Figtree, sans-serif">Pasar 2 al inventario</button>
+          <button type="button" style="min-height: 44px; padding: 0 12px; border: 0; background: transparent; color: #F2F2E8; font: 600 15px Figtree, sans-serif">Limpiar comprados</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const row = ([name, amount, store, notes]) => ({
+      name, amount,
+      detail: [amount, store, notes].filter(Boolean).join(' · '),
+      checkLabel: 'Marcar ' + name + ' como comprado',
+      deleteLabel: 'Eliminar ' + name,
+    });
+    return {
+      pending: [
+        ['Leche', '6 litros', 'Mercadona', ''],
+        ['Tomates', '1 kg', 'Frutería', 'Maduros'],
+        ['Pasta', '2 paquetes', 'Supermercado', ''],
+        ['Lentejas', '500 g', 'Supermercado', ''],
+      ].map(row),
+      bought: [
+        ['Huevos', '12 unidades', 'Supermercado', ''],
+        ['Aceite de oliva', '1 litros', 'Supermercado', ''],
+      ].map(row),
+    };
+  }
+}
+</script>
+</body>
+</html>

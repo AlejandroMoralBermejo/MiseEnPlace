@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Inventario en móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&amp;family=Figtree:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2F2E8}a:hover{color:#F2B632}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #0F3440; color: #F2F2E8; font-family: Figtree, system-ui, sans-serif">
+  <header style="padding: 20px 16px 10px; display: flex; flex-direction: column; gap: 12px">
+    <h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 40px; line-height: 1; font-weight: 800; letter-spacing: -0.02em">Inventario</h1>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <label for="buscar" style="font-size: 14px; font-weight: 600">Buscar ingrediente</label>
+      <input id="buscar" type="search" style="min-height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #62919B; border-radius: 12px; background: #17444F; color: #F2F2E8; font: 500 16px Figtree, sans-serif">
+    </div>
+  </header>
+
+  <main style="flex: 1; min-height: 0; padding: 0 16px 10px; display: flex; flex-direction: column">
+    <sc-for list="{{items}}" as="i" hint-placeholder-count="9">
+      <div style="min-height: 54px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #62919B">
+        <a href="#editar" style="flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #F2F2E8; text-decoration: none">
+          <span style="min-width: 0; font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{i.name}}</span>
+          <span style="flex: none; font-size: 16px; font-weight: 600; color: {{i.amountColor}}">{{i.amount}}</span>
+        </a>
+        <button type="button" aria-label="{{i.deleteLabel}}" style="flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #FFB3A8">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>
+        </button>
+      </div>
+    </sc-for>
+    <button type="button" style="margin-top: auto; min-height: 52px; border: 0; border-radius: 26px; background: #F2B632; color: #0F3440; font: 600 16px Figtree, sans-serif">Añadir ingrediente</button>
+  </main>
+
+  <nav aria-label="Principal" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #62919B">
+    <a href="#calendario" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2F2E8; font-size: 13px; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path></svg>
+      Calendario
+    </a>
+    <a href="#inventario" aria-current="page" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2B632; font-size: 13px; font-weight: 600; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8"></path></svg>
+      Inventario
+    </a>
+    <a href="#compras" style="min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #F2F2E8; font-size: 13px; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.5 12h10L20 8H6.5M9 20h.01M16 20h.01"></path></svg>
+      Compras
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const stock = [
+      ['Aceite de oliva', 1, 'litros'], ['Arroz', 2, 'kg'], ['Harina', 1, 'kg'], ['Huevos', 12, 'unidades'],
+      ['Leche', 6, 'litros'], ['Lentejas', 500, 'g'], ['Pasta', 0, 'paquetes'], ['Sal', 1, 'kg'], ['Tomate frito', 3, 'latas'],
+    ];
+    return {
+      items: stock.map(([name, quantity, unit]) => ({
+        name,
+        amount: quantity === 0 ? 'Agotado' : quantity + ' ' + unit,
+        amountColor: quantity === 0 ? '#FFB3A8' : '#F2F2E8',
+        deleteLabel: 'Eliminar ' + name,
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>
