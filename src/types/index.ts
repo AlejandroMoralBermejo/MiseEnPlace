@@ -67,9 +67,3 @@ export interface InventoryFormData {
   quantity: number;
   unit: string;
 }
-
-export interface ShoppingFormData {
-  ingredient_name: string;
-  quantity: number;
-  unit: string;
-}

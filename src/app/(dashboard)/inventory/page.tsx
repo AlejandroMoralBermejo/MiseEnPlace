@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { ErrorBanner } from '@/components/ErrorBanner';
 import { type InventoryItem } from '@/types';
 
 export default function InventoryPage() {
@@ -11,6 +12,8 @@ export default function InventoryPage() {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{show: boolean; id: number | null; name: string}>({show: false, id: null, name: ''});
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const supabase = createClient();
 
   const [formData, setFormData] = useState({
@@ -19,17 +22,23 @@ export default function InventoryPage() {
     unit: 'unidades',
   });
 
+  // The spinner only covers the first load: realtime refreshes must not blank the page.
   const loadItems = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from('inventory')
       .select('*')
       .order('ingredient_name');
-    if (data) setItems(data);
+    if (fetchError) {
+      setLoadError(`No se pudo cargar el inventario: ${fetchError.message}`);
+    } else {
+      setItems(data);
+      setLoadError(null);
+    }
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after the await
     loadItems();
   }, [loadItems]);
 
@@ -49,22 +58,26 @@ export default function InventoryPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editingItem) {
-      await supabase
-        .from('inventory')
-        .update({
+    const { error: saveError } = editingItem
+      ? await supabase
+          .from('inventory')
+          .update({
+            ingredient_name: formData.ingredient_name,
+            quantity: formData.quantity,
+            unit: formData.unit,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', editingItem.id)
+      : await supabase.from('inventory').insert({
           ingredient_name: formData.ingredient_name,
           quantity: formData.quantity,
           unit: formData.unit,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editingItem.id);
-    } else {
-      await supabase.from('inventory').insert({
-        ingredient_name: formData.ingredient_name,
-        quantity: formData.quantity,
-        unit: formData.unit,
-      });
+        });
+
+    // The form stays open on failure so nothing the user typed is lost.
+    if (saveError) {
+      setError(`No se pudo guardar el ingrediente: ${saveError.message}`);
+      return;
     }
 
     setShowForm(false);
@@ -89,7 +102,11 @@ export default function InventoryPage() {
 
   const confirmDelete = async () => {
     if (deleteConfirm.id) {
-      await supabase.from('inventory').delete().eq('id', deleteConfirm.id);
+      const { error: deleteError } = await supabase.from('inventory').delete().eq('id', deleteConfirm.id);
+      if (deleteError) {
+        setError(`No se pudo eliminar: ${deleteError.message}`);
+        return;
+      }
       setDeleteConfirm({ show: false, id: null, name: '' });
       loadItems();
     }
@@ -120,6 +137,12 @@ export default function InventoryPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-4 lg:p-8">
+      {error ? (
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+      ) : (
+        loadError && <ErrorBanner message={loadError} />
+      )}
+
       {/* Header */}
       <header className="mb-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -151,7 +174,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Items Grid */}
-      {filteredItems.length === 0 ? (
+      {loadError ? null : filteredItems.length === 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-white/80 p-12 text-center shadow-lg">
           <div className="text-6xl mb-4">📦</div>
           <h2 className="text-2xl font-bold text-stone-800">
@@ -295,7 +318,7 @@ export default function InventoryPage() {
               </div>
               <h3 className="text-xl font-bold text-stone-800 mb-2">¿Eliminar ingrediente?</h3>
               <p className="text-stone-600 mb-6">
-                <span className="font-semibold text-amber-600">"{deleteConfirm.name}"</span> se eliminará permanentemente del inventario.
+                <span className="font-semibold text-amber-600">&quot;{deleteConfirm.name}&quot;</span> se eliminará permanentemente del inventario.
               </p>
               <div className="flex gap-3">
                 <button

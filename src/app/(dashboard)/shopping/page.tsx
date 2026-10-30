@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { type ShoppingItem } from '@/types';
+import { ErrorBanner } from '@/components/ErrorBanner';
+import { formatDateKey } from '@/lib/dates';
+import { planPurchase } from '@/lib/purchase';
+import { type InventoryItem, type ShoppingItem } from '@/types';
 
 export default function ShoppingPage() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -10,6 +13,12 @@ export default function ShoppingPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{show: boolean; id: number | null; name: string}>({show: false, id: null, name: ''});
+  const [purchaseModal, setPurchaseModal] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [successModal, setSuccessModal] = useState<{show: boolean; count: number}>({show: false, count: 0});
+  const [clearModal, setClearModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const supabase = createClient();
 
   const [formData, setFormData] = useState({
@@ -20,17 +29,23 @@ export default function ShoppingPage() {
     notes: '',
   });
 
+  // The spinner only covers the first load: realtime refreshes must not blank the page.
   const loadItems = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from('shopping_list')
       .select('*')
       .order('created_at', { ascending: false });
-    if (data) setItems(data);
+    if (fetchError) {
+      setLoadError(`No se pudo cargar la lista: ${fetchError.message}`);
+    } else {
+      setItems(data);
+      setLoadError(null);
+    }
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after the await
     loadItems();
   }, [loadItems]);
 
@@ -50,27 +65,25 @@ export default function ShoppingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editingItem) {
-      await supabase
-        .from('shopping_list')
-        .update({
-          ingredient_name: formData.ingredient_name,
-          quantity: formData.quantity,
-          unit: formData.unit,
-          store: formData.store,
-          notes: formData.notes,
-        })
-        .eq('id', editingItem.id);
-    } else {
-      await supabase.from('shopping_list').insert({
-        ingredient_name: formData.ingredient_name,
-        quantity: formData.quantity,
-        unit: formData.unit,
-        store: formData.store,
-        notes: formData.notes,
-        purchased: false,
-        date: new Date().toISOString().split('T')[0],
-      });
+    const fields = {
+      ingredient_name: formData.ingredient_name,
+      quantity: formData.quantity,
+      unit: formData.unit,
+      store: formData.store,
+      notes: formData.notes,
+    };
+    const { error: saveError } = editingItem
+      ? await supabase.from('shopping_list').update(fields).eq('id', editingItem.id)
+      : await supabase.from('shopping_list').insert({
+          ...fields,
+          purchased: false,
+          date: formatDateKey(new Date()),
+        });
+
+    // The form stays open on failure so nothing the user typed is lost.
+    if (saveError) {
+      setError(`No se pudo guardar el item: ${saveError.message}`);
+      return;
     }
 
     setShowForm(false);
@@ -97,65 +110,86 @@ export default function ShoppingPage() {
 
   const confirmDelete = async () => {
     if (deleteConfirm.id) {
-      await supabase.from('shopping_list').delete().eq('id', deleteConfirm.id);
+      const { error: deleteError } = await supabase.from('shopping_list').delete().eq('id', deleteConfirm.id);
+      if (deleteError) {
+        setError(`No se pudo eliminar: ${deleteError.message}`);
+        return;
+      }
       setDeleteConfirm({ show: false, id: null, name: '' });
       loadItems();
     }
   };
 
   const togglePurchased = async (item: ShoppingItem) => {
-    await supabase
+    const { error: toggleError } = await supabase
       .from('shopping_list')
       .update({ purchased: !item.purchased })
       .eq('id', item.id);
+    if (toggleError) setError(`No se pudo actualizar: ${toggleError.message}`);
     loadItems();
   };
 
   const clearPurchased = async () => {
-    if (!confirm('¿Eliminar todos los items comprados de la lista?')) return;
-    await supabase.from('shopping_list').delete().eq('purchased', true);
+    const { error: clearError } = await supabase.from('shopping_list').delete().eq('purchased', true);
+    if (clearError) setError(`No se pudieron limpiar los comprados: ${clearError.message}`);
+    setClearModal(false);
     loadItems();
   };
 
-  const confirmPurchase = async () => {
+  const executePurchase = async () => {
     const purchasedItems = items.filter((item) => item.purchased);
-    if (purchasedItems.length === 0) {
-      alert('No hay items comprados para confirmar');
+    if (purchasedItems.length === 0) return;
+    setPurchaseLoading(true);
+
+    const { data: inventoryData, error: inventoryError } = await supabase.from('inventory').select('*');
+    if (inventoryError) {
+      setError(`No se pudo leer el inventario: ${inventoryError.message}`);
+      setPurchaseLoading(false);
       return;
     }
 
-    if (!confirm(`¿Confirmar compra de ${purchasedItems.length} items? Se agregarán al inventario.`)) {
-      return;
-    }
+    const inventory: InventoryItem[] = inventoryData;
+    const failed: string[] = [];
 
+    // Not atomic: a list item is removed only after its stock is written, so a failure never
+    // loses a purchase. If only the removal fails, retrying would count that item twice.
     for (const item of purchasedItems) {
-      const { data: existing } = await supabase
-        .from('inventory')
-        .select('*')
-        .ilike('ingredient_name', item.ingredient_name)
-        .single();
+      const action = planPurchase(item, inventory);
+      let stockError;
 
-      if (existing) {
-        await supabase
+      if (action.kind === 'update') {
+        ({ error: stockError } = await supabase
           .from('inventory')
-          .update({
-            quantity: existing.quantity + item.quantity,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
+          .update({ quantity: action.quantity, updated_at: new Date().toISOString() })
+          .eq('id', action.id));
+        if (!stockError) {
+          const row = inventory.find((r) => r.id === action.id);
+          if (row) row.quantity = action.quantity;
+        }
       } else {
-        await supabase.from('inventory').insert({
-          ingredient_name: item.ingredient_name,
-          quantity: item.quantity,
-          unit: item.unit,
-        });
+        const { data: inserted, error: insertError } = await supabase
+          .from('inventory')
+          .insert({ ingredient_name: action.ingredient_name, quantity: action.quantity, unit: action.unit })
+          .select()
+          .single();
+        stockError = insertError;
+        if (inserted) inventory.push(inserted);
       }
 
-      await supabase.from('shopping_list').delete().eq('id', item.id);
+      const { error: removeError } = stockError
+        ? { error: stockError }
+        : await supabase.from('shopping_list').delete().eq('id', item.id);
+      if (removeError) failed.push(item.ingredient_name);
     }
 
+    const count = purchasedItems.length - failed.length;
+    setPurchaseLoading(false);
+    setPurchaseModal(false);
+    if (failed.length > 0) {
+      setError(`No se pudieron procesar: ${failed.join(', ')}. Siguen en la lista.`);
+    }
+    if (count > 0) setSuccessModal({ show: true, count });
     loadItems();
-    alert('¡Compra confirmada! Los items se agregaron al inventario.');
   };
 
   const openAddForm = () => {
@@ -181,6 +215,12 @@ export default function ShoppingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-4 lg:p-8">
+      {error ? (
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+      ) : (
+        loadError && <ErrorBanner message={loadError} />
+      )}
+
       {/* Header */}
       <header className="mb-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -201,7 +241,7 @@ export default function ShoppingPage() {
       </header>
 
       {/* Empty State */}
-      {items.length === 0 && (
+      {items.length === 0 && !loadError && (
         <div className="rounded-2xl border border-amber-200 bg-white/80 p-12 text-center shadow-lg">
           <div className="text-6xl mb-4">🛒</div>
           <h2 className="text-2xl font-bold text-stone-800">Lista vacía</h2>
@@ -321,14 +361,14 @@ export default function ShoppingPage() {
       {items.length > 0 && (
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <button
-            onClick={confirmPurchase}
+            onClick={() => setPurchaseModal(true)}
             disabled={purchasedItems.length === 0}
             className="flex-1 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 py-4 text-lg font-bold text-white shadow-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ✓ Confirmar Compra
           </button>
           <button
-            onClick={clearPurchased}
+            onClick={() => setClearModal(true)}
             disabled={purchasedItems.length === 0}
             className="flex-1 rounded-xl border-2 border-stone-300 py-4 text-lg font-bold text-stone-600 hover:bg-stone-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -442,6 +482,115 @@ export default function ShoppingPage() {
         </div>
       )}
 
+      {/* Purchase Confirmation Modal */}
+      {purchaseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+            <div className="bg-gradient-to-br from-green-500 to-emerald-500 px-6 py-8 text-center">
+              <div className="mx-auto w-20 h-20 rounded-full bg-white/20 backdrop-blur flex items-center justify-center mb-3 ring-4 ring-white/30">
+                <span className="text-5xl">🛍️</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white">Confirmar compra</h3>
+              <p className="text-green-50 mt-1 text-sm">
+                {purchasedItems.length} {purchasedItems.length === 1 ? 'item se agregará' : 'items se agregarán'} al inventario
+              </p>
+            </div>
+            <div className="px-6 py-5">
+              <div className="max-h-56 overflow-y-auto rounded-2xl border border-stone-200 bg-stone-50 divide-y divide-stone-200">
+                {purchasedItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-green-500 text-lg">✓</span>
+                      <span className="font-semibold text-stone-800 truncate">{item.ingredient_name}</span>
+                    </div>
+                    <span className="text-sm font-medium text-stone-500 shrink-0 ml-2">
+                      {item.quantity} {item.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setPurchaseModal(false)}
+                  disabled={purchaseLoading}
+                  className="flex-1 px-4 py-3 rounded-xl border-2 border-stone-200 text-stone-600 font-semibold hover:bg-stone-100 transition-all disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={executePurchase}
+                  disabled={purchaseLoading}
+                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold shadow-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {purchaseLoading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                      Procesando...
+                    </>
+                  ) : (
+                    <>✓ Confirmar</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Purchase Success Modal */}
+      {successModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-2xl text-center animate-[fadeIn_0.25s_ease-out]">
+            <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center mb-5 shadow-lg shadow-green-500/40 animate-[fadeIn_0.4s_ease-out]">
+              <span className="text-5xl">🎉</span>
+            </div>
+            <h3 className="text-2xl font-bold text-stone-800 mb-2">¡Compra confirmada!</h3>
+            <p className="text-stone-600 mb-6">
+              <span className="font-bold text-green-600">{successModal.count}</span>{' '}
+              {successModal.count === 1 ? 'item se agregó' : 'items se agregaron'} al inventario
+            </p>
+            <button
+              onClick={() => setSuccessModal({ show: false, count: 0 })}
+              className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold shadow-lg hover:from-green-600 hover:to-emerald-600 transition-all"
+            >
+              Genial
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Purchased Confirmation Modal */}
+      {clearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl animate-[fadeIn_0.2s_ease-out]">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+                <span className="text-3xl">🧹</span>
+              </div>
+              <h3 className="text-xl font-bold text-stone-800 mb-2">¿Limpiar comprados?</h3>
+              <p className="text-stone-600 mb-6">
+                Se eliminarán <span className="font-semibold text-amber-600">{purchasedItems.length}</span>{' '}
+                {purchasedItems.length === 1 ? 'item' : 'items'} de la lista sin agregarlos al inventario.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setClearModal(false)}
+                  className="flex-1 px-4 py-3 rounded-xl border-2 border-stone-200 text-stone-600 font-semibold hover:bg-stone-100 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={clearPurchased}
+                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-lg hover:from-amber-600 hover:to-orange-600 transition-all"
+                >
+                  Limpiar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Custom Delete Confirmation Modal */}
       {deleteConfirm.show && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -452,7 +601,7 @@ export default function ShoppingPage() {
               </div>
               <h3 className="text-xl font-bold text-stone-800 mb-2">¿Eliminar item?</h3>
               <p className="text-stone-600 mb-6">
-                <span className="font-semibold text-amber-600">"{deleteConfirm.name}"</span> se eliminará de la lista de compras.
+                <span className="font-semibold text-amber-600">&quot;{deleteConfirm.name}&quot;</span> se eliminará de la lista de compras.
               </p>
               <div className="flex gap-3">
                 <button

@@ -2,9 +2,16 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { ErrorBanner } from '@/components/ErrorBanner';
+import {
+  formatDateKey,
+  getMonthDays,
+  getVisibleRange,
+  getWeekDays,
+  shiftMonth,
+  type ViewMode,
+} from '@/lib/dates';
 import { type Meal, type MealType, type Profile } from '@/types';
-
-type ViewMode = 'week' | 'month';
 
 const MEAL_TYPE_ICONS: Record<number, string> = {
   1: '☕',
@@ -23,12 +30,9 @@ const MEAL_TYPE_COLORS: Record<number, { bg: string; border: string; text: strin
 };
 
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const MONDAY_FIRST_DAY_NAMES = [...DAY_NAMES.slice(1), DAY_NAMES[0]];
 const DAY_NAMES_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-function formatDateKey(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
 
 function isSameDay(d1: Date, d2: Date): boolean {
   return d1.toDateString() === d2.toDateString();
@@ -42,10 +46,12 @@ export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showMealForm, setShowMealForm] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [mealToEdit, setMealToEdit] = useState<Meal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{show: boolean; id: string | null; name: string}>({show: false, id: null, name: ''});
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const supabase = createClient();
 
   const [formData, setFormData] = useState({
@@ -57,40 +63,35 @@ export default function CalendarPage() {
     responsible_id: '',
   });
 
+  // The spinner only covers the first load: realtime refreshes must not blank the page.
   const loadData = useCallback(async () => {
-    setLoading(true);
-    
-    let startDate: Date;
-    let endDate: Date;
-
-    if (viewMode === 'week') {
-      startDate = new Date(currentDate);
-      startDate.setDate(startDate.getDate() - startDate.getDay());
-      endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 6);
-    } else {
-      startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    }
+    const { start, end } = getVisibleRange(currentDate, viewMode);
 
     const [mealsRes, mealTypesRes, profilesRes] = await Promise.all([
       supabase
         .from('meals')
         .select('*, meal_types(*), profiles(*)')
-        .gte('date', formatDateKey(startDate))
-        .lte('date', formatDateKey(endDate))
+        .gte('date', start)
+        .lte('date', end)
         .order('date'),
       supabase.from('meal_types').select('*'),
       supabase.from('profiles').select('*'),
     ]);
 
-    if (mealsRes.data) setMeals(mealsRes.data);
-    if (mealTypesRes.data) setMealTypes(mealTypesRes.data);
-    if (profilesRes.data) setProfiles(profilesRes.data);
+    const fetchError = mealsRes.error || mealTypesRes.error || profilesRes.error;
+    if (fetchError) {
+      setLoadError(`No se pudo cargar el calendario: ${fetchError.message}`);
+    } else {
+      setMeals(mealsRes.data);
+      setMealTypes(mealTypesRes.data);
+      setProfiles(profilesRes.data);
+      setLoadError(null);
+    }
     setLoading(false);
-  }, [currentDate, viewMode]);
+  }, [currentDate, viewMode, supabase]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after the await
     loadData();
   }, [loadData]);
 
@@ -107,23 +108,26 @@ export default function CalendarPage() {
     return () => { supabase.removeChannel(channel); };
   }, [loadData, supabase]);
 
-  const getMealsForDay = (date: Date, mealTypeId?: number): Meal[] => {
-    const dateStr = formatDateKey(date);
-    return meals.filter((meal) => {
-      if (meal.date !== dateStr) return false;
-      if (mealTypeId && meal.meal_type_id !== mealTypeId) return false;
-      return true;
-    });
-  };
-
   const getAllMealsForDay = (date: Date): Meal[] => {
     const dateStr = formatDateKey(date);
     return meals.filter((meal) => meal.date === dateStr);
   };
 
+  const toggleDayExpand = (e: React.MouseEvent, dateKey: string) => {
+    e.stopPropagation();
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) {
+        next.delete(dateKey);
+      } else {
+        next.add(dateKey);
+      }
+      return next;
+    });
+  };
+
   const openAddMeal = (date: Date, mealTypeId?: number) => {
     setMealToEdit(null);
-    setSelectedDate(formatDateKey(date));
     setFormData({
       name: '',
       ingredients: '',
@@ -137,7 +141,6 @@ export default function CalendarPage() {
 
   const openEditMeal = (meal: Meal) => {
     setMealToEdit(meal);
-    setSelectedDate(meal.date);
     setFormData({
       name: meal.name,
       ingredients: (meal.ingredients || []).join(', '),
@@ -156,24 +159,22 @@ export default function CalendarPage() {
       .map((i) => i.trim())
       .filter((i) => i);
 
-    if (mealToEdit) {
-      await supabase.from('meals').update({
-        name: formData.name,
-        ingredients,
-        preparation: formData.preparation || null,
-        date: formData.date,
-        meal_type_id: formData.meal_type_id,
-        responsible_id: formData.responsible_id || null,
-      }).eq('id', mealToEdit.id);
-    } else {
-      await supabase.from('meals').insert({
-        name: formData.name,
-        ingredients,
-        preparation: formData.preparation || null,
-        date: formData.date,
-        meal_type_id: formData.meal_type_id,
-        responsible_id: formData.responsible_id || null,
-      });
+    const meal = {
+      name: formData.name,
+      ingredients,
+      preparation: formData.preparation || null,
+      date: formData.date,
+      meal_type_id: formData.meal_type_id,
+      responsible_id: formData.responsible_id || null,
+    };
+    const { error: saveError } = mealToEdit
+      ? await supabase.from('meals').update(meal).eq('id', mealToEdit.id)
+      : await supabase.from('meals').insert(meal);
+
+    // The form stays open on failure so nothing the user typed is lost.
+    if (saveError) {
+      setError(`No se pudo guardar la comida: ${saveError.message}`);
+      return;
     }
 
     setShowMealForm(false);
@@ -212,52 +213,14 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
-  const navigatePrev = () => {
+  const navigate = (direction: 1 | -1) => {
+    if (viewMode === 'month') {
+      setCurrentDate(shiftMonth(currentDate, direction));
+      return;
+    }
     const newDate = new Date(currentDate);
-    if (viewMode === 'week') {
-      newDate.setDate(newDate.getDate() - 7);
-    } else {
-      newDate.setMonth(newDate.getMonth() - 1);
-    }
+    newDate.setDate(newDate.getDate() + 7 * direction);
     setCurrentDate(newDate);
-  };
-
-  const navigateNext = () => {
-    const newDate = new Date(currentDate);
-    if (viewMode === 'week') {
-      newDate.setDate(newDate.getDate() + 7);
-    } else {
-      newDate.setMonth(newDate.getMonth() + 1);
-    }
-    setCurrentDate(newDate);
-  };
-
-  const getWeekDays = (): Date[] => {
-    const start = new Date(currentDate);
-    start.setDate(start.getDate() - start.getDay());
-    return Array.from({ length: 7 }, (_, i) => {
-      const day = new Date(start);
-      day.setDate(day.getDate() + i);
-      return day;
-    });
-  };
-
-  const getMonthDays = (): (Date | null)[] => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const days: (Date | null)[] = [];
-    
-    for (let i = 0; i < firstDay.getDay(); i++) {
-      days.push(null);
-    }
-    
-    for (let i = 1; i <= lastDay.getDate(); i++) {
-      days.push(new Date(year, month, i));
-    }
-    
-    return days;
   };
 
   const getMonthLabel = (): string => {
@@ -265,7 +228,7 @@ export default function CalendarPage() {
   };
 
   const getWeekLabel = (): string => {
-    const days = getWeekDays();
+    const days = getWeekDays(currentDate);
     const start = days[0];
     const end = days[6];
     if (start.getMonth() === end.getMonth()) {
@@ -287,6 +250,12 @@ export default function CalendarPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-4 lg:p-6">
+      {error ? (
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+      ) : (
+        loadError && <ErrorBanner message={loadError} />
+      )}
+
       {/* Header */}
       <header className="mb-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -315,7 +284,7 @@ export default function CalendarPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={navigatePrev}
+                onClick={() => navigate(-1)}
                 className="p-2 rounded-xl bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
                 aria-label={viewMode === 'week' ? 'Semana anterior' : 'Mes anterior'}
               >
@@ -326,7 +295,7 @@ export default function CalendarPage() {
               
               <button
                 type="button"
-                onClick={navigateNext}
+                onClick={() => navigate(1)}
                 className="p-2 rounded-xl bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
                 aria-label={viewMode === 'week' ? 'Semana siguiente' : 'Mes siguiente'}
               >
@@ -383,7 +352,7 @@ export default function CalendarPage() {
         {viewMode === 'week' ? (
           /* Week View - single col on mobile, full 7-day grid from md+ */
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 lg:gap-3 max-w-[1800px] mx-auto">
-            {getWeekDays().map((day) => {
+            {getWeekDays(currentDate).map((day) => {
               const isToday = isSameDay(day, new Date());
               return (
                 <div
@@ -439,6 +408,7 @@ export default function CalendarPage() {
                               e.stopPropagation();
                               handleDelete(meal.id, meal.name);
                             }}
+                            aria-label={`Eliminar ${meal.name}`}
                             className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm font-bold transition-opacity hover:bg-red-200 flex items-center justify-center"
                           >
                             ×
@@ -472,7 +442,7 @@ export default function CalendarPage() {
           <div className="bg-white rounded-2xl shadow-lg shadow-amber-100/50 border border-amber-100 overflow-hidden max-w-[1800px] mx-auto">
             {/* Day Headers */}
             <div className="grid grid-cols-7 border-b border-amber-100">
-              {DAY_NAMES.map((name, i) => (
+              {MONDAY_FIRST_DAY_NAMES.map((name) => (
                 <div key={name} className="text-center py-3 bg-stone-50">
                   <p className="text-sm font-semibold text-stone-600">{name}</p>
                 </div>
@@ -481,26 +451,25 @@ export default function CalendarPage() {
 
             {/* Calendar Grid - Content-driven height */}
             <div className="grid grid-cols-7">
-              {getMonthDays().map((day, index) => {
+              {getMonthDays(currentDate).map((day, index) => {
                 if (!day) {
                   return <div key={`empty-${index}`} className="bg-stone-50/50"></div>;
                 }
 
                 const isToday = isSameDay(day, new Date());
                 const dayMeals = getAllMealsForDay(day);
+                const dateKey = formatDateKey(day);
+                const isExpanded = expandedDays.has(dateKey);
+                const visibleMeals = isExpanded ? dayMeals : dayMeals.slice(0, 3);
 
                 return (
                   <div
                     key={day.toISOString()}
                     onClick={() => openAddMeal(day)}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      openAddMeal(day);
-                    }}
                     className={`min-h-[100px] p-2 border-b border-r border-amber-100 cursor-pointer transition-colors hover:bg-amber-50/50 ${
                       isToday ? 'bg-amber-50/30' : ''
                     }`}
-                    title="Doble clic para agregar comida"
+                    title="Clic para agregar comida"
                   >
                     <div className="flex items-start justify-between">
                       <span
@@ -515,7 +484,7 @@ export default function CalendarPage() {
                     </div>
 
                     <div className="mt-1 space-y-1">
-                      {dayMeals.slice(0, 3).map((meal) => {
+                      {visibleMeals.map((meal) => {
                         const colors = MEAL_TYPE_COLORS[meal.meal_type_id] || MEAL_TYPE_COLORS[1];
                         return (
                           <div
@@ -524,18 +493,25 @@ export default function CalendarPage() {
                               e.stopPropagation();
                               openEditMeal(meal);
                             }}
-                            className={`text-xs p-1.5 rounded-lg ${colors.bg} ${colors.border} border truncate ${colors.hover}`}
+                            className={`text-xs p-1.5 rounded-lg ${colors.bg} ${colors.border} border ${colors.hover} ${
+                              isExpanded ? 'whitespace-normal break-words leading-snug' : 'truncate'
+                            }`}
                           >
                             <span className="mr-1">{MEAL_TYPE_ICONS[meal.meal_type_id]}</span>
                             <span className={`font-medium ${colors.text}`}>{meal.name}</span>
                           </div>
                         );
                       })}
-                      
+
                       {dayMeals.length > 3 && (
-                        <p className="text-xs text-stone-500 font-medium pl-1">
-                          +{dayMeals.length - 3} más
-                        </p>
+                        <button
+                          type="button"
+                          onClick={(e) => toggleDayExpand(e, dateKey)}
+                          className="w-full text-left text-xs font-semibold text-amber-700 pl-1 py-1 rounded-lg hover:bg-amber-100 active:bg-amber-200 transition-colors"
+                          aria-expanded={isExpanded}
+                        >
+                          {isExpanded ? '− menos' : `+${dayMeals.length - 3} más`}
+                        </button>
                       )}
                     </div>
                   </div>
@@ -670,7 +646,7 @@ export default function CalendarPage() {
                   onChange={(e) => setFormData({ ...formData, preparation: e.target.value })}
                   rows={3}
                   className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100 transition-all resize-none"
-                  placeholder="1. Hervir la pasta...\n2. Preparar la salsa..."
+                  placeholder={'1. Hervir la pasta...\n2. Preparar la salsa...'}
                 />
               </div>
 
@@ -705,7 +681,7 @@ export default function CalendarPage() {
               </div>
               <h3 className="text-xl font-bold text-stone-800 mb-2">¿Eliminar comida?</h3>
               <p className="text-stone-600 mb-6">
-                <span className="font-semibold text-amber-600">"{deleteConfirm.name}"</span> se eliminará permanentemente.
+                <span className="font-semibold text-amber-600">&quot;{deleteConfirm.name}&quot;</span> se eliminará permanentemente.
               </p>
               {deleteError && (
                 <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-left">

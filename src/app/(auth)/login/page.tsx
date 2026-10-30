@@ -18,6 +18,7 @@ export default function LoginPage() {
   useEffect(() => {
     const savedEmail = localStorage.getItem('remembered_email');
     if (savedEmail) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR
       setEmail(savedEmail);
       setRememberMe(true);
     }

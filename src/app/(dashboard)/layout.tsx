@@ -5,13 +5,15 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { isAuthRetryableFetchError, type User } from '@supabase/supabase-js';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [connectionFailed, setConnectionFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
@@ -19,7 +21,13 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error } = await supabase.auth.getUser();
+      // A network failure is not a logout: do not send the user to /login for it.
+      if (isAuthRetryableFetchError(error)) {
+        setConnectionFailed(true);
+        setLoading(false);
+        return;
+      }
       if (!user) {
         router.push('/login');
         return;
@@ -28,7 +36,7 @@ export default function DashboardLayout({
       setLoading(false);
     };
     getUser();
-  }, []);
+  }, [router, supabase]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -40,6 +48,21 @@ export default function DashboardLayout({
     return (
       <div className="flex min-h-screen items-center justify-center bg-stone-50">
         <div className="text-xl text-stone-600">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (connectionFailed) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-stone-50 p-6 text-center">
+        <p className="text-xl font-semibold text-stone-800">No se puede conectar con la base de datos</p>
+        <p className="text-stone-600">Es posible que el proyecto de Supabase esté pausado.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded-lg bg-stone-800 px-4 py-2 text-white hover:bg-stone-700"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
