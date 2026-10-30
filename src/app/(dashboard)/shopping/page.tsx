@@ -277,7 +277,7 @@ export default function ShoppingPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col gap-4 p-4 lg:gap-6 lg:p-7">
+    <div className="flex flex-col gap-4 p-4 lg:gap-6 lg:p-7">
       {error ? (
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
       ) : (
@@ -298,7 +298,7 @@ export default function ShoppingPage() {
         </div>
       )}
 
-      <div className="grid items-start gap-6 lg:grid-cols-2 lg:gap-8">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 lg:gap-8">
         {pendingItems.length > 0 && (
           <section>
             <h2 className="mb-1 text-[15px] font-semibold lg:text-base">Por comprar ({pendingItems.length})</h2>
