@@ -23,6 +23,7 @@ import {
   shiftMonth,
   type ViewMode,
 } from '@/lib/dates';
+import { buildChecklist, parseIngredients, toShoppingRows, type ChecklistItem } from '@/lib/ingredients';
 import { type Meal, type MealType, type Profile } from '@/types';
 
 const MEAL_TYPE_COLORS: Record<number, string> = {
@@ -62,6 +63,10 @@ export default function CalendarPage() {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [checklist, setChecklist] = useState<ChecklistItem[] | null>(null);
+  const [checklistBusy, setChecklistBusy] = useState(false);
+  const [checklistError, setChecklistError] = useState<string | null>(null);
+  const [shoppingNotice, setShoppingNotice] = useState<{ text: string; isError: boolean } | null>(null);
   const supabase = createClient();
 
   const [formData, setFormData] = useState({
@@ -171,6 +176,53 @@ export default function CalendarPage() {
   const closeMealForm = () => {
     setShowMealForm(false);
     setMealToEdit(null);
+    setShoppingNotice(null);
+  };
+
+  const openShoppingChecklist = async () => {
+    setShoppingNotice(null);
+    setChecklistError(null);
+    const { data, error: fetchError } = await supabase
+      .from('shopping_list')
+      .select('ingredient_name')
+      .eq('purchased', false);
+    if (fetchError) {
+      // Shown next to the button: the page banner sits behind the full-screen form on a phone.
+      setShoppingNotice({ text: `No se pudo leer la lista de la compra: ${fetchError.message}`, isError: true });
+      return;
+    }
+    const pending = data.map((row: { ingredient_name: string }) => row.ingredient_name);
+    setChecklist(buildChecklist(parseIngredients(formData.ingredients), pending));
+  };
+
+  const toggleChecklistItem = (index: number) => {
+    setChecklist((prev) =>
+      prev && prev.map((item, i) => (i === index ? { ...item, checked: !item.checked } : item))
+    );
+  };
+
+  const addChecklistToShopping = async () => {
+    if (!checklist) return;
+    const names = checklist.filter((item) => item.checked).map((item) => item.name);
+    if (names.length === 0) {
+      setChecklist(null);
+      return;
+    }
+    setChecklistBusy(true);
+    const { error: insertError } = await supabase
+      .from('shopping_list')
+      .insert(toShoppingRows(names, formData.name, formatDateKey(new Date())));
+    setChecklistBusy(false);
+    // The checklist stays open on failure so the selection is not lost.
+    if (insertError) {
+      setChecklistError(`No se pudo añadir a la compra: ${insertError.message}`);
+      return;
+    }
+    setChecklist(null);
+    setShoppingNotice({
+      text: names.length === 1 ? '1 ingrediente añadido a la compra' : `${names.length} ingredientes añadidos a la compra`,
+      isError: false,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -614,6 +666,24 @@ export default function CalendarPage() {
                 onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
                 className={textareaClass}
               />
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <button
+                  type="button"
+                  onClick={openShoppingChecklist}
+                  disabled={parseIngredients(formData.ingredients).length === 0}
+                  className={secondaryButtonClass}
+                >
+                  Añadir a la compra
+                </button>
+                {shoppingNotice && (
+                  <p
+                    role={shoppingNotice.isError ? 'alert' : 'status'}
+                    className={`break-words text-sm font-medium ${shoppingNotice.isError ? 'text-danger' : 'text-primary'}`}
+                  >
+                    {shoppingNotice.text}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>
@@ -644,6 +714,35 @@ export default function CalendarPage() {
             </div>
           </form>
         </FormDialog>
+      )}
+
+      {checklist && (
+        <ConfirmDialog
+          title="Añadir a la compra"
+          confirmLabel={`Añadir ${checklist.filter((item) => item.checked).length}`}
+          busy={checklistBusy}
+          error={checklistError}
+          onConfirm={addChecklistToShopping}
+          onCancel={() => setChecklist(null)}
+        >
+          <p className="mb-3">Desmarca lo que no necesites comprar.</p>
+          <ul className="flex max-h-[50vh] flex-col gap-1 overflow-y-auto">
+            {checklist.map((item, index) => (
+              <li key={item.name}>
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-2 hover:bg-surface">
+                  <input
+                    type="checkbox"
+                    checked={item.checked}
+                    onChange={() => toggleChecklistItem(index)}
+                    className="h-5 w-5 flex-none accent-primary"
+                  />
+                  <span className="min-w-0 flex-1 break-words font-medium text-ink">{item.name}</span>
+                  {item.alreadyListed && <span className="flex-none text-xs">ya en la lista</span>}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </ConfirmDialog>
       )}
 
       {deleteConfirm.show && (
